@@ -22,6 +22,13 @@ import {
   Clock3,
   Loader2,
   AlertCircle,
+  FileSearch,
+  Briefcase,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Shield,
 } from "lucide-react";
 
 const API =
@@ -103,6 +110,26 @@ interface Vendor {
   updated_at: string;
 }
 
+interface Expense {
+  id: number;
+  expense_date: string;
+  category: string;
+  category_display: string;
+  description: string;
+  amount: number | string;
+  payment_method: string;
+  payment_method_display: string;
+  receipt_number: string | null;
+  receipt_image: string | null;
+  remarks: string | null;
+  created_at: string;
+}
+
+interface SidebarSection {
+  title: string;
+  items: Module[];
+}
+
 interface Module {
   name: string;
   description: string;
@@ -110,48 +137,92 @@ interface Module {
   icon: React.ElementType;
 }
 
-const modules: Module[] = [
+const sidebarSections: SidebarSection[] = [
   {
-    name: "Employees",
-    description: "View and manage employee records",
-    href: "/manager/employees",
-    icon: Users,
+    title: "Overview",
+    items: [
+      {
+        name: "Dashboard",
+        description: "Executive overview",
+        href: "/director/dashboard",
+        icon: LayoutDashboard,
+      },
+    ],
   },
   {
-    name: "Attendance",
-    description: "Monitor daily attendance",
-    href: "/manager/attendance",
-    icon: CalendarCheck,
+    title: "Financials",
+    items: [
+      {
+        name: "Daily Wages",
+        description: "View casual employee wages",
+        href: "/director/daily-wages",
+        icon: CircleDollarSign,
+      },
+      {
+        name: "Permanent Payroll",
+        description: "Manage permanent staff payroll",
+        href: "/director/permanent-payroll",
+        icon: Briefcase,
+      },
+      {
+        name: "Expenses",
+        description: "View and manage expenses",
+        href: "/director/expenses",
+        icon: Receipt,
+      },
+      {
+        name: "Vendors",
+        description: "View vendors and transactions",
+        href: "/director/vendors",
+        icon: Store,
+      },
+    ],
   },
   {
-    name: "Daily Wages",
-    description: "View casual employee wages",
-    href: "/manager/daily-wages",
-    icon: CircleDollarSign,
+    title: "Operations",
+    items: [
+      {
+        name: "Employees",
+        description: "View and manage employee records",
+        href: "/director/employees",
+        icon: Users,
+      },
+      {
+        name: "Attendance",
+        description: "Monitor daily attendance",
+        href: "/director/attendance",
+        icon: CalendarCheck,
+      },
+      {
+        name: "Vehicles",
+        description: "View company vehicles",
+        href: "/director/vehicles",
+        icon: Truck,
+      },
+      {
+        name: "Fuel",
+        description: "Monitor fuel usage",
+        href: "/director/fuel",
+        icon: Fuel,
+      },
+    ],
   },
   {
-    name: "Vehicles",
-    description: "View company vehicles",
-    href: "/manager/vehicles",
-    icon: Truck,
-  },
-  {
-    name: "Fuel",
-    description: "Monitor fuel usage",
-    href: "/manager/fuel",
-    icon: Fuel,
-  },
-  {
-    name: "Vendors",
-    description: "View vendors and transactions",
-    href: "/manager/vendors",
-    icon: Store,
-  },
-  {
-    name: "Expenses",
-    description: "View and manage expenses",
-    href: "/manager/expenses",
-    icon: Receipt,
+    title: "Governance",
+    items: [
+      {
+        name: "Users",
+        description: "Manage system users",
+        href: "/director/users",
+        icon: Shield,
+      },
+      {
+        name: "Audit",
+        description: "View audit logs and reports",
+        href: "/director/audit",
+        icon: FileSearch,
+      },
+    ],
   },
 ];
 
@@ -188,7 +259,7 @@ function extractArray<T>(data: unknown): T[] {
   return [];
 }
 
-export default function ManagerDashboardPage() {
+export default function DirectorDashboardPage() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -201,44 +272,53 @@ export default function ManagerDashboardPage() {
   const [fuel, setFuel] = useState<FuelSummary | null>(null);
   const [payroll, setPayroll] = useState<PayrollSummary | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const authenticatedFetch = useCallback(
     async (endpoint: string) => {
-      const response = await fetch(`${API}${endpoint}`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      try {
+        const response = await fetch(`${API}${endpoint}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        });
 
-      if (response.status === 401) {
-        router.replace("/");
-        throw new Error("Your session has expired.");
-      }
-
-      if (!response.ok) {
-        let message = `Request failed with status ${response.status}.`;
-
-        try {
-          const data = await response.json();
-
-          if (typeof data?.detail === "string") {
-            message = data.detail;
-          } else if (typeof data?.error === "string") {
-            message = data.error;
-          }
-        } catch {
-          // Keep the default error message.
+        if (response.status === 401) {
+          router.replace("/");
+          throw new Error("Your session has expired.");
         }
 
-        throw new Error(message);
-      }
+        if (!response.ok) {
+          let message = `Request failed with status ${response.status}.`;
 
-      return response.json();
+          try {
+            const data = await response.json();
+
+            if (typeof data?.detail === "string") {
+              message = data.detail;
+            } else if (typeof data?.error === "string") {
+              message = data.error;
+            }
+          } catch {
+            // Keep the default error message.
+          }
+
+          throw new Error(message);
+        }
+
+        return response.json();
+      } catch (err) {
+        // If it's a network error, re-throw with a user-friendly message
+        if (err instanceof TypeError && err.message === "Failed to fetch") {
+          throw new Error("Network error. Please check your connection.");
+        }
+        throw err;
+      }
     },
     [router]
   );
@@ -256,6 +336,7 @@ export default function ManagerDashboardPage() {
         fuelData,
         payrollData,
         vendorsData,
+        expensesData,
       ] = await Promise.all([
         authenticatedFetch("/me/"),
         authenticatedFetch("/employees/list/"),
@@ -264,6 +345,7 @@ export default function ManagerDashboardPage() {
         authenticatedFetch("/fuel/reports/daily/"),
         authenticatedFetch("/payroll/casual/summary/"),
         authenticatedFetch("/vendors/"),
+        authenticatedFetch("/expenses/"),
       ]);
 
       if (meData.role === "admin") {
@@ -271,12 +353,12 @@ export default function ManagerDashboardPage() {
         return;
       }
 
-      if (meData.role === "director") {
-        router.replace("/director/dashboard");
+      if (meData.role === "manager") {
+        router.replace("/manager/dashboard");
         return;
       }
 
-      if (meData.role !== "manager") {
+      if (meData.role !== "director") {
         router.replace("/");
         return;
       }
@@ -288,7 +370,9 @@ export default function ManagerDashboardPage() {
       setFuel(fuelData);
       setPayroll(payrollData);
       setVendors(extractArray<Vendor>(vendorsData));
+      setExpenses(extractArray<Expense>(expensesData));
     } catch (err) {
+      console.error("Dashboard load error:", err);
       if (err instanceof Error && err.message) {
         setError(err.message);
       } else {
@@ -335,6 +419,17 @@ export default function ManagerDashboardPage() {
 
     const inactiveVendors = vendors.length - activeVendors;
 
+    const totalExpenses = expenses.length;
+    const totalExpenseAmount = expenses.reduce(
+      (sum, exp) => sum + Number(exp.amount || 0),
+      0
+    );
+
+    const totalVendorBalance = vendors.reduce(
+      (sum, v) => sum + Number(v.total_balance || 0),
+      0
+    );
+
     return {
       totalEmployees,
       casualEmployees,
@@ -347,8 +442,11 @@ export default function ManagerDashboardPage() {
       totalVendors: vendors.length,
       activeVendors,
       inactiveVendors,
+      totalExpenses,
+      totalExpenseAmount,
+      totalVendorBalance,
     };
-  }, [employees, attendance, vehicles, vendors]);
+  }, [employees, attendance, vehicles, vendors, expenses]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -448,7 +546,7 @@ export default function ManagerDashboardPage() {
               NYUTU LIMITED
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Management Portal
+              Director Portal
             </p>
           </div>
 
@@ -460,42 +558,39 @@ export default function ManagerDashboardPage() {
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
-          </p>
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          {sidebarSections.map((section) => (
+            <div key={section.title} className="mb-6">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+                {section.title}
+              </p>
 
-          <nav className="mt-3 space-y-1">
-            <button
-              onClick={() => router.push("/manager/dashboard")}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                pathname === "/manager/dashboard"
-                  ? "bg-white/10 text-white"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
-            </button>
+              <nav className="mt-3 space-y-1">
+                {section.items.map((module) => {
+                  const Icon = module.icon;
+                  const isActive = pathname === module.href;
 
-            {modules.map((module) => {
-              const Icon = module.icon;
-
-              return (
-                <button
-                  key={module.name}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
-                >
-                  <Icon className="h-5 w-5" />
-                  <span>{module.name}</span>
-                </button>
-              );
-            })}
-          </nav>
+                  return (
+                    <button
+                      key={module.name}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        router.push(module.href);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-white/10 text-white"
+                          : "text-slate-400 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{module.name}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
         </div>
 
         <div className="border-t border-white/10 p-4">
@@ -507,7 +602,7 @@ export default function ManagerDashboardPage() {
 
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white">
-                  Manager
+                  Director
                 </p>
                 <p className="truncate text-xs text-slate-500">
                   {me?.email}
@@ -540,10 +635,10 @@ export default function ManagerDashboardPage() {
 
             <div className="hidden lg:block">
               <p className="text-sm font-medium text-slate-900">
-                Manager Dashboard
+                Director Dashboard
               </p>
               <p className="text-xs text-slate-500">
-                Operational overview
+                Executive overview
               </p>
             </div>
 
@@ -553,12 +648,12 @@ export default function ManagerDashboardPage() {
                   {me?.email}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Manager
+                  Director
                 </p>
               </div>
 
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+                {me?.email?.charAt(0).toUpperCase() || "D"}
               </div>
             </div>
           </div>
@@ -569,267 +664,296 @@ export default function ManagerDashboardPage() {
           <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="max-w-3xl">
               <p className="text-sm font-medium text-slate-400">
-                {greeting}
+                {greeting}, Director
               </p>
 
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Welcome to your dashboard
+                Executive Dashboard
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Monitor daily operations, attendance, vehicles,
-                fuel, wages, vendors and expenses from one place.
+                Monitor all operations, payroll, expenses, and access
+                comprehensive audit logs from one place.
               </p>
             </div>
           </section>
 
-          {/* Available Modules */}
+          {/* Financial Overview - Primary */}
           <section className="mt-9">
             <div className="mb-5">
               <h2 className="text-lg font-semibold text-slate-900">
-                Available Modules
+                Financial Overview
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Operational information available to you as manager.
+                Current financial position and commitments.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <button
+                onClick={() => router.push("/director/daily-wages")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-blue-50 p-2">
+                    <CircleDollarSign className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Weekly Payroll Due</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {formatCurrency(payroll?.total_amount_due || 0)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {formatCurrency(payroll?.total_amount_pending || 0)} pending
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => router.push("/director/expenses")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-purple-50 p-2">
+                    <Receipt className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Total Expenses</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {formatCurrency(stats.totalExpenseAmount)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {stats.totalExpenses} transactions
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => router.push("/director/fuel")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-orange-50 p-2">
+                    <Fuel className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Fuel Cost (Today)</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {formatCurrency(fuel?.fuel_cost || 0)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {formatNumber(fuel?.fuel_purchased_litres || 0)} L purchased
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => router.push("/director/vendors")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-red-50 p-2">
+                    <Store className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Vendor Balance Due</p>
+                    <p className={`text-2xl font-semibold ${
+                      stats.totalVendorBalance > 0 ? "text-red-600" : "text-green-600"
+                    }`}>
+                      {formatCurrency(stats.totalVendorBalance)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {stats.totalVendors} vendors
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          {/* Operations Overview */}
+          <section className="mt-9">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Operations Overview
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Workforce and asset utilization metrics.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-slate-100 p-2">
+                    <Users className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Total Employees</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {stats.totalEmployees}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {stats.permanentEmployees} permanent · {stats.casualEmployees} casual
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-green-50 p-2">
+                    <UserCheck className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Today's Attendance</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {stats.presentToday} / {stats.totalEmployees}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {stats.absentToday} absent · {stats.unmarkedToday} unmarked
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-yellow-50 p-2">
+                    <Truck className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Fleet Vehicles</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {stats.totalVehicles}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Registered assets
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-indigo-50 p-2">
+                    <Briefcase className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Permanent Staff</p>
+                    <p className="text-2xl font-semibold text-slate-900">
+                      {stats.permanentEmployees}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Monthly payroll eligible
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Quick Access */}
+          <section className="mt-9">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Quick Access
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Direct links to key management areas.
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {/* Employees */}
               <button
-                onClick={() => router.push("/manager/employees")}
+                onClick={() => router.push("/director/permanent-payroll")}
                 className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Users className="h-5 w-5 text-slate-700" />
+                    <Briefcase className="h-5 w-5 text-slate-700" />
                   </div>
-
                   <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Employees
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {stats.totalEmployees}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {stats.casualEmployees} casual ·{" "}
-                  {stats.permanentEmployees} permanent
-                </p>
+                <p className="mt-5 text-sm font-medium text-slate-500">Permanent Payroll</p>
+                <p className="mt-1 text-xs text-slate-500">Manage monthly payroll for {stats.permanentEmployees} staff</p>
               </button>
 
-              {/* Attendance */}
               <button
-                onClick={() => router.push("/manager/attendance")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <CalendarCheck className="h-5 w-5 text-slate-700" />
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Attendance
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {stats.presentToday} / {stats.totalEmployees}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {stats.presentToday} present ·{" "}
-                  {stats.absentToday} absent ·{" "}
-                  {stats.unmarkedToday} unmarked
-                </p>
-              </button>
-
-              {/* Daily Wages */}
-              <button
-                onClick={() => router.push("/manager/daily-wages")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <CircleDollarSign className="h-5 w-5 text-slate-700" />
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Daily Wages
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {formatCurrency(
-                    payroll?.total_amount_due || 0
-                  )}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {formatCurrency(
-                    payroll?.total_amount_pending || 0
-                  )}{" "}
-                  pending
-                </p>
-              </button>
-
-              {/* Vehicles */}
-              <button
-                onClick={() => router.push("/manager/vehicles")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Truck className="h-5 w-5 text-slate-700" />
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Vehicles
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {stats.totalVehicles}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Registered vehicles
-                </p>
-              </button>
-
-              {/* Fuel */}
-              <button
-                onClick={() => router.push("/manager/fuel")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Fuel className="h-5 w-5 text-slate-700" />
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Fuel
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {formatNumber(
-                    fuel?.fuel_purchased_litres || 0
-                  )}{" "}
-                  L
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {formatNumber(
-                    fuel?.fuel_remaining_litres || 0
-                  )}{" "}
-                  L remaining
-                </p>
-              </button>
-
-              {/* Vendors */}
-              <button
-                onClick={() => router.push("/manager/vendors")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Store className="h-5 w-5 text-slate-700" />
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
-                </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Vendors
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  {stats.totalVendors}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {stats.activeVendors} active ·{" "}
-                  {stats.inactiveVendors} inactive
-                </p>
-              </button>
-
-              {/* Expenses */}
-              <button
-                onClick={() => router.push("/manager/expenses")}
+                onClick={() => router.push("/director/expenses")}
                 className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
                     <Receipt className="h-5 w-5 text-slate-700" />
                   </div>
-
                   <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
-
-                <p className="mt-5 text-sm font-medium text-slate-500">
-                  Expenses
-                </p>
-
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                  Track expenses
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  View and manage expenses
-                </p>
+                <p className="mt-5 text-sm font-medium text-slate-500">Expenses</p>
+                <p className="mt-1 text-xs text-slate-500">{stats.totalExpenses} transactions · {formatCurrency(stats.totalExpenseAmount)}</p>
               </button>
-            </div>
-          </section>
 
-          {/* Manager profile */}
-          <section className="mt-9 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-                  <ShieldCheck className="h-6 w-6 text-slate-700" />
+              <button
+                onClick={() => router.push("/director/users")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                    <Shield className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
+                <p className="mt-5 text-sm font-medium text-slate-500">User Management</p>
+                <p className="mt-1 text-xs text-slate-500">Manage system users and permissions</p>
+              </button>
 
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Manager Profile
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    {me?.email}
-                  </p>
+              <button
+                onClick={() => router.push("/director/vendors")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                    <Store className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
-              </div>
+                <p className="mt-5 text-sm font-medium text-slate-500">Vendors</p>
+                <p className="mt-1 text-xs text-slate-500">{stats.totalVendors} vendors · {formatCurrency(stats.totalVendorBalance)} balance due</p>
+              </button>
 
-              <div className="flex flex-wrap gap-3 text-xs">
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
-                  <UserCheck className="h-4 w-4" />
-                  {stats.presentToday} present today
+              <button
+                onClick={() => router.push("/director/fuel")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                    <Fuel className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
+                <p className="mt-5 text-sm font-medium text-slate-500">Fuel Management</p>
+                <p className="mt-1 text-xs text-slate-500">{formatNumber(fuel?.fuel_remaining_litres || 0)} L remaining</p>
+              </button>
 
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
-                  <UserX className="h-4 w-4" />
-                  {stats.absentToday} absent today
+              <button
+                onClick={() => router.push("/director/audit")}
+                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                    <FileSearch className="h-5 w-5 text-slate-700" />
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
                 </div>
-
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
-                  <Clock3 className="h-4 w-4" />
-                  {stats.unmarkedToday} unmarked
-                </div>
-              </div>
+                <p className="mt-5 text-sm font-medium text-slate-500">Audit Log</p>
+                <p className="mt-1 text-xs text-slate-500">View system audit trail and reports</p>
+              </button>
             </div>
           </section>
 
@@ -841,7 +965,7 @@ export default function ManagerDashboardPage() {
               </p>
 
               <p>
-                Management Portal · Manager Access
+                Director Portal · Executive Access
               </p>
             </div>
           </footer>

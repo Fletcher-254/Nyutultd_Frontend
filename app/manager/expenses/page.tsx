@@ -11,7 +11,6 @@ import {
   Fuel,
   CircleDollarSign,
   Store,
-  Receipt,
   LogOut,
   Menu,
   X,
@@ -23,21 +22,22 @@ import {
   Filter,
   ChevronLeft,
   RefreshCw,
-  Eye,
-  Calendar,
+  Receipt,
   Wallet,
-  FileText,
-  CreditCard,
-  Building2,
-  PieChart,
-  BarChart3,
+  Calendar,
   TrendingUp,
   TrendingDown,
   Minus,
-  DollarSign,
+  Eye,
+  FileText,
+  CreditCard,
+  Building2,
   Clock,
-  FileSearch,
-  Briefcase,
+  CheckCircle,
+  XCircle,
+  PieChart,
+  BarChart3,
+  Plus,
 } from "lucide-react";
 
 const API =
@@ -94,11 +94,6 @@ interface YearlySummary {
   total: number | string;
 }
 
-interface SidebarSection {
-  title: string;
-  items: Module[];
-}
-
 interface Module {
   name: string;
   description: string;
@@ -106,86 +101,48 @@ interface Module {
   icon: React.ElementType;
 }
 
-const sidebarSections: SidebarSection[] = [
+const modules: Module[] = [
   {
-    title: "Overview",
-    items: [
-      {
-        name: "Dashboard",
-        description: "Executive overview",
-        href: "/director/dashboard",
-        icon: LayoutDashboard,
-      },
-    ],
+    name: "Employees",
+    description: "View and manage employee records",
+    href: "/manager/employees",
+    icon: Users,
   },
   {
-    title: "Financials",
-    items: [
-      {
-        name: "Daily Wages",
-        description: "View casual employee wages",
-        href: "/director/daily-wages",
-        icon: CircleDollarSign,
-      },
-      {
-        name: "Permanent Payroll",
-        description: "Manage permanent staff payroll",
-        href: "/director/permanent-payroll",
-        icon: Briefcase,
-      },
-      {
-        name: "Expenses",
-        description: "View and manage expenses",
-        href: "/director/expenses",
-        icon: Receipt,
-      },
-      {
-        name: "Vendors",
-        description: "View vendors and transactions",
-        href: "/director/vendors",
-        icon: Store,
-      },
-    ],
+    name: "Attendance",
+    description: "Monitor daily attendance",
+    href: "/manager/attendance",
+    icon: CalendarCheck,
   },
   {
-    title: "Operations",
-    items: [
-      {
-        name: "Employees",
-        description: "View and manage employee records",
-        href: "/director/employees",
-        icon: Users,
-      },
-      {
-        name: "Attendance",
-        description: "Monitor daily attendance",
-        href: "/director/attendance",
-        icon: CalendarCheck,
-      },
-      {
-        name: "Vehicles",
-        description: "View company vehicles",
-        href: "/director/vehicles",
-        icon: Truck,
-      },
-      {
-        name: "Fuel",
-        description: "Monitor fuel usage",
-        href: "/director/fuel",
-        icon: Fuel,
-      },
-    ],
+    name: "Daily Wages",
+    description: "View casual employee wages",
+    href: "/manager/daily-wages",
+    icon: CircleDollarSign,
   },
   {
-    title: "Governance",
-    items: [
-      {
-        name: "Audit",
-        description: "View audit logs and reports",
-        href: "/director/audit",
-        icon: FileSearch,
-      },
-    ],
+    name: "Vehicles",
+    description: "View company vehicles",
+    href: "/manager/vehicles",
+    icon: Truck,
+  },
+  {
+    name: "Fuel",
+    description: "Monitor fuel usage",
+    href: "/manager/fuel",
+    icon: Fuel,
+  },
+  {
+    name: "Vendors",
+    description: "View vendors and transactions",
+    href: "/manager/vendors",
+    icon: Store,
+  },
+  {
+    name: "Expenses",
+    description: "View and manage expenses",
+    href: "/manager/expenses",
+    icon: Receipt,
   },
 ];
 
@@ -271,7 +228,7 @@ function getPaymentMethodBadge(method: string) {
 
 type Tab = "overview" | "expenses" | "summary";
 
-export default function DirectorExpensesPage() {
+export default function ManagerExpensesPage() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -360,17 +317,18 @@ export default function DirectorExpensesPage() {
         authenticatedFetch("/expenses/yearly-summary/"),
       ]);
 
+      // Check role
       if (meData.role === "admin") {
         router.replace("/admin/dashboard");
         return;
       }
 
-      if (meData.role === "manager") {
-        router.replace("/manager/dashboard");
+      if (meData.role === "director") {
+        router.replace("/director/dashboard");
         return;
       }
 
-      if (meData.role !== "director") {
+      if (meData.role !== "manager") {
         router.replace("/");
         return;
       }
@@ -429,8 +387,6 @@ export default function DirectorExpensesPage() {
     todayTotal: Number(dailyExpenses?.total || 0),
     monthTotal: Number(monthlyExpenses?.total || 0),
     yearTotal: Number(yearlyExpenses?.total || 0),
-    todayCount: dailyExpenses?.expenses?.length || 0,
-    monthCount: monthlyExpenses?.expenses?.length || 0,
   };
 
   const greeting = (() => {
@@ -530,7 +486,7 @@ export default function DirectorExpensesPage() {
 
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <DollarSign className="h-4 w-4" />
+                  <Wallet className="h-4 w-4" />
                   <span>Amount</span>
                 </div>
                 <p className="mt-2 text-lg font-semibold text-slate-900">
@@ -620,14 +576,14 @@ export default function DirectorExpensesPage() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div>
             <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Director Portal</p>
+            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
@@ -637,39 +593,43 @@ export default function DirectorExpensesPage() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          {sidebarSections.map((section) => (
-            <div key={section.title} className="mb-6">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-                {section.title}
-              </p>
+        <div className="flex-1 px-4 py-6">
+          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Navigation
+          </p>
 
-              <nav className="mt-3 space-y-1">
-                {section.items.map((module) => {
-                  const Icon = module.icon;
-                  const isActive = pathname === module.href;
+          <nav className="mt-3 space-y-1">
+            <button
+              onClick={() => router.push("/manager/dashboard")}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              <span>Dashboard</span>
+            </button>
 
-                  return (
-                    <button
-                      key={module.name}
-                      onClick={() => {
-                        setMobileOpen(false);
-                        router.push(module.href);
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-white/10 text-white"
-                          : "text-slate-400 hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span>{module.name}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          ))}
+            {modules.map((module) => {
+              const Icon = module.icon;
+              const isActive = pathname === module.href;
+
+              return (
+                <button
+                  key={module.name}
+                  onClick={() => {
+                    setMobileOpen(false);
+                    router.push(module.href);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-white/10 text-white"
+                      : "text-slate-400 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{module.name}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
         <div className="border-t border-white/10 p-4">
@@ -679,7 +639,7 @@ export default function DirectorExpensesPage() {
                 <ShieldCheck className="h-5 w-5 text-slate-300" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Director</p>
+                <p className="truncate text-sm font-medium text-white">Manager</p>
                 <p className="truncate text-xs text-slate-500">{me?.email}</p>
               </div>
             </div>
@@ -714,10 +674,10 @@ export default function DirectorExpensesPage() {
             <div className="flex items-center gap-3">
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Director</p>
+                <p className="text-xs text-slate-500">Manager</p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "D"}
+                {me?.email?.charAt(0).toUpperCase() || "M"}
               </div>
             </div>
           </div>
@@ -728,7 +688,7 @@ export default function DirectorExpensesPage() {
           <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}, Director</p>
+                <p className="text-sm font-medium text-slate-400">{greeting}</p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                   Expense Management
                 </h1>
@@ -756,7 +716,6 @@ export default function DirectorExpensesPage() {
                 <div>
                   <p className="text-xs text-slate-500">Total Expenses</p>
                   <p className="text-2xl font-semibold text-slate-900">{stats.total}</p>
-                  <p className="text-xs text-slate-400">All time</p>
                 </div>
               </div>
             </div>
@@ -764,14 +723,13 @@ export default function DirectorExpensesPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-blue-50 p-2">
-                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  <Wallet className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Total Amount</p>
                   <p className="text-2xl font-semibold text-slate-900">
                     {formatCurrency(stats.totalAmount)}
                   </p>
-                  <p className="text-xs text-slate-400">{stats.total} transactions</p>
                 </div>
               </div>
             </div>
@@ -786,7 +744,6 @@ export default function DirectorExpensesPage() {
                   <p className="text-2xl font-semibold text-slate-900">
                     {formatCurrency(stats.monthTotal)}
                   </p>
-                  <p className="text-xs text-slate-400">{stats.monthCount} transactions</p>
                 </div>
               </div>
             </div>
@@ -794,14 +751,13 @@ export default function DirectorExpensesPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-orange-50 p-2">
-                  <Clock className="h-5 w-5 text-orange-600" />
+                  <Calendar className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Today</p>
                   <p className="text-2xl font-semibold text-slate-900">
                     {formatCurrency(stats.todayTotal)}
                   </p>
-                  <p className="text-xs text-slate-400">{stats.todayCount} transactions</p>
                 </div>
               </div>
             </div>
@@ -936,16 +892,16 @@ export default function DirectorExpensesPage() {
                     <div className="px-5 py-4 border-b border-slate-200">
                       <h3 className="font-semibold text-slate-900">Monthly Summary</h3>
                     </div>
-                    <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                    <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 sticky top-0">
+                        <thead className="bg-slate-50">
                           <tr>
                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">Month</th>
                             <th className="px-4 py-2.5 text-right font-medium text-slate-600">Total</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {monthlySummary.slice(0, 12).map((item) => (
+                          {monthlySummary.slice(0, 6).map((item) => (
                             <tr key={String(item.month)} className="hover:bg-slate-50/50">
                               <td className="px-4 py-2.5 text-slate-600">
                                 {formatDate(String(item.month))}
@@ -1143,7 +1099,7 @@ export default function DirectorExpensesPage() {
             {/* Summary Tab */}
             {activeTab === "summary" && (
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Yearly Expenses */}
+                {/* Yearly Summary */}
                 {yearlyExpenses && (
                   <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-200">
@@ -1190,12 +1146,12 @@ export default function DirectorExpensesPage() {
                   </div>
                 )}
 
-                {/* Monthly Summary with Trends */}
+                {/* Monthly Summary */}
                 {monthlySummary.length > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-200">
                       <h3 className="font-semibold text-slate-900">Monthly Expense Trends</h3>
-                      <p className="text-xs text-slate-500">Month-over-month comparison</p>
+                      <p className="text-xs text-slate-500">Year-over-year comparison</p>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -1203,7 +1159,7 @@ export default function DirectorExpensesPage() {
                           <tr>
                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">Month</th>
                             <th className="px-4 py-2.5 text-right font-medium text-slate-600">Total</th>
-                            <th className="px-4 py-2.5 text-center font-medium text-slate-600">Change</th>
+                            <th className="px-4 py-2.5 text-center font-medium text-slate-600">Trend</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1214,7 +1170,6 @@ export default function DirectorExpensesPage() {
                               : currentTotal;
                             const diff = currentTotal - prevTotal;
                             const isUp = diff > 0;
-                            const percentChange = prevTotal !== 0 ? (diff / prevTotal) * 100 : 0;
                             
                             return (
                               <tr key={String(item.month)} className="hover:bg-slate-50/50">
@@ -1229,9 +1184,6 @@ export default function DirectorExpensesPage() {
                                     <span className={`inline-flex items-center gap-1 text-xs font-medium ${isUp ? "text-red-600" : "text-green-600"}`}>
                                       {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                                       {Math.abs(diff) > 0 ? formatCurrency(Math.abs(diff)) : "0"}
-                                      <span className="text-slate-400 text-[10px]">
-                                        ({Math.abs(percentChange).toFixed(1)}%)
-                                      </span>
                                     </span>
                                   )}
                                 </td>
@@ -1251,7 +1203,7 @@ export default function DirectorExpensesPage() {
           <footer className="mt-9 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
               <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-              <p>Director Portal · Executive Access</p>
+              <p>Management Portal · Manager Access</p>
             </div>
           </footer>
         </main>
