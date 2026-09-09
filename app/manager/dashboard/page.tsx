@@ -15,13 +15,20 @@ import {
   X,
   ChevronRight,
   ShieldCheck,
-  ArrowUpRight,
-  UserCheck,
-  UserX,
+  Search,
+  SlidersHorizontal,
   Store,
-  AlertTriangle,
-  Receipt,
-  Clock3,
+  Phone,
+  MapPin,
+  UserRound,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Eye,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -43,65 +50,13 @@ interface UserProfile {
   created_at: string;
 }
 
-interface Employee {
-  id: number;
-  employee_id: string;
-  full_name: string;
-  employment_type: string;
-  daily_wage: string | number;
-  is_active?: boolean;
-}
-
-interface AttendanceRecord {
-  id: number;
-  employee: number;
-  employee_name: string;
-  employee_id_display: string;
-  date: string;
-  time?: string;
-  is_present: boolean;
-}
-
-interface Vehicle {
-  id: number;
-  asset_identifier: string;
-  assigned_operator?: string | null;
-  opening_odometer_reading?: string | number | null;
-  closing_odometer_reading?: string | number | null;
-  remarks?: string | null;
-  created_at: string;
-}
-
-interface FuelSummary {
-  date: string;
-  fuel_purchased_litres: number | string;
-  fuel_issued_litres: number | string;
-  fuel_remaining_litres: number | string;
-  fuel_cost: number | string;
-}
-
-interface PayrollSummary {
-  payroll_period?: {
-    start_date?: string;
-    end_date?: string;
-  };
-  total_employees: number;
-  paid_employees: number;
-  pending_employees: number;
-  processing_employees: number;
-  failed_employees: number;
-  total_amount_due: number | string;
-  total_amount_paid: number | string;
-  total_amount_pending: number | string;
-}
-
 interface Vendor {
   id: number;
   vendor_name: string;
   service_type: string;
-  contact_person?: string | null;
-  phone_number?: string | null;
-  physical_address?: string | null;
+  contact_person: string | null;
+  phone_number: string | null;
+  physical_address: string | null;
   is_active: boolean;
   transaction_count: number;
   total_amount: number | string;
@@ -112,52 +67,69 @@ interface Vendor {
   updated_at: string;
 }
 
-interface Module {
-  name: string;
-  href: string;
-  icon: React.ElementType;
-}
-
-const modules: Module[] = [
+const modules = [
   {
-    name: "Employees",
-    href: "/manager/employees",
+    label: "Employees",
+    path: "/manager/employees",
     icon: Users,
   },
   {
-    name: "Attendance",
-    href: "/manager/attendance",
+    label: "Attendance",
+    path: "/manager/attendance",
     icon: CalendarCheck,
   },
   {
-    name: "Daily Wages",
-    href: "/manager/daily-wages",
+    label: "Daily Wages",
+    path: "/manager/daily-wages",
     icon: CircleDollarSign,
   },
   {
-    name: "Vehicles",
-    href: "/manager/vehicles",
+    label: "Vehicles",
+    path: "/manager/vehicles",
     icon: Truck,
   },
   {
-    name: "Fuel",
-    href: "/manager/fuel",
+    label: "Fuel",
+    path: "/manager/fuel",
     icon: Fuel,
   },
   {
-    name: "Vendors",
-    href: "/manager/vendors",
+    label: "Vendors",
+    path: "/manager/vendors",
     icon: Store,
   },
   {
-    name: "Expenses",
-    href: "/manager/expenses",
-    icon: Receipt,
+    label: "Expenses",
+    path: "/manager/expenses",
+    icon: CircleDollarSign,
   },
 ];
 
-function formatCurrency(value: number | string) {
-  const amount = Number(value || 0);
+const ITEMS_PER_PAGE = 10;
+
+function extractArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "results" in payload &&
+    Array.isArray((payload as { results: unknown }).results)
+  ) {
+    return (payload as { results: T[] }).results;
+  }
+
+  return [];
+}
+
+function formatCurrency(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+
+  if (Number.isNaN(amount)) {
+    return "KES 0";
+  }
 
   return new Intl.NumberFormat("en-KE", {
     style: "currency",
@@ -166,99 +138,207 @@ function formatCurrency(value: number | string) {
   }).format(amount);
 }
 
-function formatNumber(value: number | string) {
-  return new Intl.NumberFormat("en-KE", {
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
-}
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
 
-function extractArray<T>(data: unknown): T[] {
-  if (Array.isArray(data)) {
-    return data as T[];
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
   }
 
-  if (
-    data &&
-    typeof data === "object" &&
-    "results" in data &&
-    Array.isArray((data as { results: unknown }).results)
-  ) {
-    return (data as { results: T[] }).results;
-  }
-
-  return [];
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
-export default function ManagerDashboardPage() {
-  const router = useRouter();
+function formatDateFull(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!parts.length) return "V";
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+export default function ManagerVendorsPage() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const [today, setToday] = useState("");
-  const [greeting, setGreeting] = useState("");
-
   const [user, setUser] = useState<UserProfile | null>(null);
-
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [fuel, setFuel] = useState<FuelSummary | null>(null);
-  const [payroll, setPayroll] = useState<PayrollSummary | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const isActive = (path: string) => {
-    if (path === "/manager/dashboard") {
-      return pathname === "/manager/dashboard" || pathname === "/manager";
-    }
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
-    return pathname === path || pathname.startsWith(`${path}/`);
-  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
-  const navigate = (path: string) => {
-    setSidebarOpen(false);
-    router.push(path);
-  };
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const isActive = useCallback(
+    (path: string) => {
+      if (path === "/manager/dashboard") {
+        return (
+          pathname === "/manager/dashboard" ||
+          pathname === "/manager"
+        );
+      }
+
+      return pathname === path || pathname.startsWith(`${path}/`);
+    },
+    [pathname]
+  );
+
+  const navigate = useCallback(
+    (path: string) => {
+      setSidebarOpen(false);
+      router.push(path);
+    },
+    [router]
+  );
 
   const handleUnauthorized = useCallback(() => {
     router.replace("/");
   }, [router]);
 
   const authenticatedFetch = useCallback(
-    async (
-      endpoint: string,
-      options: RequestInit = {}
-    ): Promise<Response | null> => {
-      try {
-        const response = await fetch(`${API_URL}${endpoint}`, {
-          ...options,
-          credentials: "include",
-          cache: "no-store",
-          headers: {
-            Accept: "application/json",
-            ...(options.headers || {}),
-          },
-        });
+    async (endpoint: string, options: RequestInit = {}) => {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {}),
+        },
+      });
 
-        if (response.status === 401) {
-          handleUnauthorized();
-          return null;
-        }
-
-        return response;
-      } catch (error) {
-        console.error("Authenticated request failed:", error);
-        throw error;
+      if (response.status === 401) {
+        handleUnauthorized();
+        throw new Error("Your session has expired. Please sign in again.");
       }
+
+      let data: unknown = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const detail =
+          data &&
+          typeof data === "object" &&
+          "detail" in data &&
+          typeof (data as { detail: unknown }).detail === "string"
+            ? (data as { detail: string }).detail
+            : "Unable to complete the request.";
+
+        throw new Error(detail);
+      }
+
+      return data;
     },
     [handleUnauthorized]
   );
 
-  const logout = async () => {
+  const loadData = useCallback(
+    async (showRefreshState = false) => {
+      if (showRefreshState) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      try {
+        const meData = await authenticatedFetch("/me/");
+
+        const currentUser = meData as UserProfile;
+
+        if (currentUser.role === "admin") {
+          router.replace("/admin/dashboard");
+          return;
+        }
+
+        if (currentUser.role === "director") {
+          router.replace("/director/dashboard");
+          return;
+        }
+
+        if (currentUser.role !== "manager") {
+          router.replace("/");
+          return;
+        }
+
+        setUser(currentUser);
+
+        const vendorsData = await authenticatedFetch("/vendors/");
+
+        setVendors(extractArray<Vendor>(vendorsData));
+      } catch (err) {
+        console.error("Failed to load vendors:", err);
+
+        if (
+          err instanceof Error &&
+          !err.message.includes("session has expired")
+        ) {
+          setError(
+            err.message || "Unable to load vendors. Please try again."
+          );
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [authenticatedFetch, router]
+  );
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const logout = useCallback(async () => {
     if (loggingOut) return;
 
     setLoggingOut(true);
@@ -271,206 +351,58 @@ export default function ManagerDashboardPage() {
         },
         credentials: "include",
       });
-    } catch (error) {
-      console.error("Logout request failed:", error);
+    } catch (logoutError) {
+      console.error("Logout failed:", logoutError);
     } finally {
       router.replace("/");
     }
-  };
+  }, [loggingOut, router]);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const filteredVendors = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
 
-    try {
-      /* --------------------------------------------------
-         AUTHENTICATED USER
-      -------------------------------------------------- */
+    return vendors.filter((vendor) => {
+      const matchesSearch =
+        !query ||
+        vendor.vendor_name?.toLowerCase().includes(query) ||
+        vendor.service_type?.toLowerCase().includes(query) ||
+        vendor.contact_person?.toLowerCase().includes(query) ||
+        vendor.phone_number?.toLowerCase().includes(query);
 
-      const meResponse = await authenticatedFetch("/me/");
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && vendor.is_active) ||
+        (statusFilter === "inactive" && !vendor.is_active);
 
-      if (!meResponse) return;
+      return matchesSearch && matchesStatus;
+    });
+  }, [vendors, searchTerm, statusFilter]);
 
-      if (!meResponse.ok) {
-        throw new Error("Unable to authenticate user.");
-      }
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredVendors.length / ITEMS_PER_PAGE)
+  );
 
-      const meData: UserProfile = await meResponse.json();
+  const paginatedVendors = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
 
-      const role = meData.role?.trim().toLowerCase();
+    return filteredVendors.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredVendors, currentPage]);
 
-      if (role === "admin") {
-        router.replace("/admin/dashboard");
-        return;
-      }
+  const totalVendors = vendors.length;
 
-      if (role === "director") {
-        router.replace("/director/dashboard");
-        return;
-      }
+  const activeVendors = vendors.filter(
+    (vendor) => vendor.is_active
+  ).length;
 
-      if (role !== "manager") {
-        router.replace("/");
-        return;
-      }
+  const inactiveVendors = vendors.filter(
+    (vendor) => !vendor.is_active
+  ).length;
 
-      setUser(meData);
-
-      /* --------------------------------------------------
-         DATE + GREETING
-      -------------------------------------------------- */
-
-      const now = new Date();
-      const hour = now.getHours();
-
-      if (hour < 12) {
-        setGreeting("Good Morning");
-      } else if (hour < 17) {
-        setGreeting("Good Afternoon");
-      } else {
-        setGreeting("Good Evening");
-      }
-
-      setToday(
-        now.toLocaleDateString("en-KE", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      );
-
-      /* --------------------------------------------------
-         DASHBOARD DATA
-      -------------------------------------------------- */
-
-      const [
-        employeesRes,
-        attendanceRes,
-        vehiclesRes,
-        fuelRes,
-        payrollRes,
-        vendorsRes,
-      ] = await Promise.all([
-        authenticatedFetch("/employees/list/"),
-        authenticatedFetch("/attendance/today/"),
-        authenticatedFetch("/vehicles/"),
-        authenticatedFetch("/fuel/reports/daily/"),
-        authenticatedFetch("/payroll/casual/summary/"),
-        authenticatedFetch("/vendors/"),
-      ]);
-
-      /* Employees */
-
-      if (employeesRes?.ok) {
-        const data = await employeesRes.json();
-        setEmployees(extractArray<Employee>(data));
-      }
-
-      /* Attendance */
-
-      if (attendanceRes?.ok) {
-        const data = await attendanceRes.json();
-        setAttendance(extractArray<AttendanceRecord>(data));
-      }
-
-      /* Vehicles */
-
-      if (vehiclesRes?.ok) {
-        const data = await vehiclesRes.json();
-        setVehicles(extractArray<Vehicle>(data));
-      }
-
-      /* Fuel */
-
-      if (fuelRes?.ok) {
-        const data = await fuelRes.json();
-        setFuel(data);
-      }
-
-      /* Payroll */
-
-      if (payrollRes?.ok) {
-        const data = await payrollRes.json();
-        setPayroll(data);
-      }
-
-      /* Vendors */
-
-      if (vendorsRes?.ok) {
-        const data = await vendorsRes.json();
-        setVendors(extractArray<Vendor>(data));
-      }
-    } catch (err) {
-      console.error("Manager dashboard loading error:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load dashboard data."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [authenticatedFetch, router]);
-
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  /* --------------------------------------------------
-     DERIVED STATS
-  -------------------------------------------------- */
-
-  const stats = useMemo(() => {
-    const totalEmployees = employees.length;
-
-    const activeEmployees = employees.filter(
-      (employee) => employee.is_active !== false
-    ).length;
-
-    const casualEmployees = employees.filter(
-      (employee) => employee.employment_type === "casual"
-    ).length;
-
-    const permanentEmployees = employees.filter(
-      (employee) => employee.employment_type === "permanent"
-    ).length;
-
-    const markedToday = attendance.length;
-
-    const presentToday = attendance.filter(
-      (record) => record.is_present === true
-    ).length;
-
-    const absentToday = attendance.filter(
-      (record) => record.is_present === false
-    ).length;
-
-    const unmarkedToday = Math.max(
-      activeEmployees - markedToday,
-      0
-    );
-
-    const activeVendors = vendors.filter(
-      (vendor) => vendor.is_active
-    ).length;
-
-    return {
-      totalEmployees,
-      activeEmployees,
-      casualEmployees,
-      permanentEmployees,
-      markedToday,
-      presentToday,
-      absentToday,
-      unmarkedToday,
-      totalVehicles: vehicles.length,
-      totalVendors: vendors.length,
-      activeVendors,
-      inactiveVendors: vendors.length - activeVendors,
-    };
-  }, [employees, attendance, vehicles, vendors]);
+  const totalOutstanding = vendors.reduce(
+    (sum, vendor) => sum + Number(vendor.total_balance || 0),
+    0
+  );
 
   const firstName =
     user?.first_name?.trim() ||
@@ -481,46 +413,47 @@ export default function ManagerDashboardPage() {
     `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
     firstName;
 
-  /* --------------------------------------------------
-     LOADING
-  -------------------------------------------------- */
+  const firstItem =
+    filteredVendors.length === 0
+      ? 0
+      : (currentPage - 1) * ITEMS_PER_PAGE + 1;
 
-  if (loading || !user) {
+  const lastItem = Math.min(
+    currentPage * ITEMS_PER_PAGE,
+    filteredVendors.length
+  );
+
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center">
-          <div className="relative h-12 w-12">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-blue-600" />
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           </div>
 
-          <p className="mt-5 text-sm font-medium text-slate-600">
-            Loading your dashboard...
+          <p className="text-sm font-semibold text-slate-800">
+            Loading your vendors...
           </p>
 
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             Verifying secure access
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
-  /* --------------------------------------------------
-     ERROR
-  -------------------------------------------------- */
-
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-6 w-6 text-red-600" />
           </div>
 
-          <h1 className="mt-5 text-lg font-bold text-slate-900">
-            Unable to load dashboard
-          </h1>
+          <h2 className="text-lg font-bold text-slate-900">
+            Unable to load vendors
+          </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
             {error}
@@ -528,623 +461,921 @@ export default function ManagerDashboardPage() {
 
           <button
             type="button"
-            onClick={loadDashboard}
-            className="mt-6 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            onClick={() => void loadData()}
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
+            <RefreshCw className="h-4 w-4" />
             Try Again
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
-  /* --------------------------------------------------
-     DASHBOARD
-  -------------------------------------------------- */
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-100">
       {/* Mobile overlay */}
-
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Close navigation"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
         />
       )}
 
-      {/* ==================================================
-          SIDEBAR
-      ================================================== */}
-
+      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand */}
-
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
-          <button
-            type="button"
-            onClick={() => navigate("/manager/dashboard")}
-            className="flex items-center gap-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 text-lg font-black text-white shadow-lg shadow-blue-600/20">
+        <div className="flex h-20 shrink-0 items-center border-b border-slate-800 px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-black text-white shadow-lg shadow-blue-600/20">
               N
             </div>
 
-            <div className="text-left">
+            <div>
               <p className="text-sm font-bold tracking-wide text-white">
                 NYUTU LIMITED
               </p>
 
-              <p className="mt-0.5 text-[9px] font-medium tracking-[0.2em] text-slate-500">
+              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
                 ERP MANAGEMENT
               </p>
             </div>
-          </button>
+          </div>
 
           <button
             type="button"
+            aria-label="Close navigation"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-800 hover:text-white lg:hidden"
-            aria-label="Close menu"
+            className="ml-auto rounded-lg p-2 text-slate-400 transition hover:bg-slate-900 hover:text-white lg:hidden"
           >
-            <X size={20} />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation */}
-
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
             Management
           </p>
 
           <nav className="space-y-1">
             <button
               type="button"
-              onClick={() =>
-                navigate("/manager/dashboard")
-              }
-              className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
+              onClick={() => navigate("/manager/dashboard")}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                 isActive("/manager/dashboard")
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
                   : "text-slate-400 hover:bg-slate-900 hover:text-white"
               }`}
             >
-              <LayoutDashboard
-                size={18}
-                strokeWidth={
-                  isActive("/manager/dashboard") ? 2.4 : 2
-                }
-              />
-
-              <span className="flex-1 text-left">
-                Dashboard
-              </span>
-
+              <LayoutDashboard className="h-[18px] w-[18px]" />
+              <span className="flex-1 text-left">Dashboard</span>
               {isActive("/manager/dashboard") && (
-                <ChevronRight
-                  size={15}
-                  className="opacity-70"
-                />
+                <ChevronRight className="h-4 w-4" />
               )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const active = isActive(module.href);
+              const active = isActive(module.path);
 
               return (
                 <button
-                  key={module.name}
+                  key={module.path}
                   type="button"
-                  onClick={() => navigate(module.href)}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
+                  onClick={() => navigate(module.path)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                     active
                       ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
                       : "text-slate-400 hover:bg-slate-900 hover:text-white"
                   }`}
                 >
-                  <Icon
-                    size={18}
-                    strokeWidth={active ? 2.4 : 2}
-                  />
+                  <Icon className="h-[18px] w-[18px]" />
 
                   <span className="flex-1 text-left">
-                    {module.name}
+                    {module.label}
                   </span>
 
-                  {active && (
-                    <ChevronRight
-                      size={15}
-                      className="opacity-70"
-                    />
-                  )}
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* User / Logout */}
+        {/* Account */}
+        <div className="shrink-0 border-t border-slate-800 p-4">
+          <div className="mb-3 rounded-xl bg-slate-900 p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                {getInitials(fullName)}
+              </div>
 
-        <div className="border-t border-slate-800 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-sm font-bold text-blue-400">
-              {firstName.charAt(0).toUpperCase()}
-            </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">
+                  {fullName}
+                </p>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-white">
-                {fullName}
-              </p>
-
-              <p className="truncate text-[10px] text-slate-500">
-                Manager
-              </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Manager
+                </p>
+              </div>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={logout}
+            onClick={() => void logout()}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut size={18} />
+            {loggingOut ? (
+              <Loader2 className="h-[18px] w-[18px] animate-spin" />
+            ) : (
+              <LogOut className="h-[18px] w-[18px]" />
+            )}
 
-            <span>
-              {loggingOut
-                ? "Signing out..."
-                : "Sign Out"}
-            </span>
+            <span>{loggingOut ? "Signing Out..." : "Sign Out"}</span>
           </button>
         </div>
       </aside>
 
-      {/* ==================================================
-          MAIN
-      ================================================== */}
-
-      <div className="min-h-screen lg:pl-72">
+      {/* Main */}
+      <div className="lg:pl-72">
         {/* Header */}
+        <header className="sticky top-0 z-30 flex h-20 items-center border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+          <button
+            type="button"
+            aria-label="Open navigation"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-4 rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-50 lg:hidden"
-                aria-label="Open menu"
-              >
-                <Menu size={20} />
-              </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                Vendors
+              </p>
 
-              <div>
-                <p className="hidden text-xs font-medium text-slate-400 sm:block">
-                  {today}
-                </p>
+              <span className="hidden text-slate-300 sm:block">
+                /
+              </span>
 
-                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
-                  {greeting}, {firstName}
-                </h1>
-              </div>
+              <p className="hidden text-sm text-slate-500 sm:block">
+                Management
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 sm:flex">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </span>
+            <p className="mt-0.5 hidden text-xs text-slate-500 sm:block">
+              Manage your vendor directory and supplier relationships
+            </p>
+          </div>
 
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                  System Online
-                </span>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-700">
+                System Online
+              </span>
+            </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-sm font-bold text-white shadow-md shadow-blue-600/20">
-                {firstName.charAt(0).toUpperCase()}
-              </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+              {getInitials(fullName)}
             </div>
           </div>
         </header>
 
-        {/* Content */}
-
-        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          {/* ==================================================
-              WELCOME
-          ================================================== */}
-
-          <section className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-4 shadow-lg sm:p-5">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-
-            <div className="absolute -bottom-32 right-32 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl" />
-
-            <div className="relative flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <main className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Page Heading */}
+          <section className="mb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1">
-                  <ShieldCheck
-                    size={11}
-                    className="text-blue-400"
-                  />
-
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-blue-300">
-                    Manager
-                  </span>
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <span>Management</span>
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                  <span className="text-blue-600">Vendors</span>
                 </div>
 
-                <p className="mt-1 text-sm text-white">
-                  Welcome back,{" "}
-                  <span className="font-semibold">
-                    {firstName}
-                  </span>
-                </p>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+                  Vendors
+                </h1>
 
-                <p className="text-xs text-slate-400">
-                  Here's your operational overview for today
+                <p className="mt-1 text-sm text-slate-500">
+                  View and manage your organization&apos;s vendors.
                 </p>
               </div>
 
-              <div className="hidden md:block">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                  <LayoutDashboard
-                    size={24}
-                    className="text-blue-400"
-                  />
+              <button
+                type="button"
+                onClick={() => void loadData(true)}
+                disabled={refreshing}
+                className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
+                />
+                Refresh
+              </button>
+            </div>
+          </section>
+
+          {/* Compact Summary */}
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Total Vendors
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {totalVendors}
+                  </p>
+                </div>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Store className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Active
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {activeVendors}
+                  </p>
+                </div>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Inactive
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold text-slate-950">
+                    {inactiveVendors}
+                  </p>
+                </div>
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <XCircle className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Outstanding
+                  </p>
+
+                  <p className="mt-2 truncate text-xl font-bold text-slate-950">
+                    {formatCurrency(totalOutstanding)}
+                  </p>
+                </div>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                  <CircleDollarSign className="h-5 w-5" />
                 </div>
               </div>
             </div>
           </section>
 
-          {/* ==================================================
-              OPERATIONAL OVERVIEW
-          ================================================== */}
+          {/* Vendor Directory */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* Toolbar */}
+            <div className="border-b border-slate-200 p-4 sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">
+                    Vendor Directory
+                  </h2>
 
-          <section>
-            <div className="mb-5 flex items-end justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-600">
-                  Operations
-                </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Search and review registered suppliers.
+                  </p>
+                </div>
 
-                <h2 className="mt-1 text-xl font-bold text-slate-900">
-                  Key Statistics
-                </h2>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="relative min-w-0 sm:w-72">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) =>
+                        setSearchTerm(event.target.value)
+                      }
+                      placeholder="Search vendors..."
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <select
+                      value={statusFilter}
+                      onChange={(event) =>
+                        setStatusFilter(
+                          event.target.value as
+                            | "all"
+                            | "active"
+                            | "inactive"
+                        )
+                      }
+                      className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 sm:w-40"
+                    >
+                      <option value="all">All Vendors</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-
-              <span className="text-xs text-slate-400">
-                Updated{" "}
-                {new Date().toLocaleTimeString("en-KE")}
-              </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label="Total Employees"
-                value={stats.totalEmployees}
-                subtext={`${stats.activeEmployees} active`}
-                icon={Users}
-                iconBg="bg-blue-50"
-                iconColor="text-blue-600"
-                onClick={() =>
-                  navigate("/manager/employees")
-                }
-              />
+            {/* Desktop Table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Vendor
+                    </th>
 
-              <StatCard
-                label="Today's Attendance"
-                value={`${stats.presentToday} / ${stats.activeEmployees}`}
-                subtext={`${stats.absentToday} absent · ${stats.unmarkedToday} unmarked`}
-                icon={UserCheck}
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-600"
-                onClick={() =>
-                  navigate("/manager/attendance")
-                }
-              />
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Contact
+                    </th>
 
-              <StatCard
-                label="Daily Wages"
-                value={formatCurrency(
-                  payroll?.total_amount_due || 0
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Transactions
+                    </th>
+
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Balance
+                    </th>
+
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedVendors.map((vendor) => (
+                    <tr
+                      key={vendor.id}
+                      className="transition hover:bg-slate-50/70"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
+                            {getInitials(vendor.vendor_name)}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-slate-900">
+                              {vendor.vendor_name}
+                            </p>
+
+                            <p className="mt-0.5 truncate text-xs text-slate-500">
+                              {vendor.service_type || "General supplier"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="space-y-1">
+                          {vendor.contact_person && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <UserRound className="h-3.5 w-3.5 text-slate-400" />
+                              <span>{vendor.contact_person}</span>
+                            </div>
+                          )}
+
+                          {vendor.phone_number && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Phone className="h-3.5 w-3.5 text-slate-400" />
+                              <span>{vendor.phone_number}</span>
+                            </div>
+                          )}
+
+                          {!vendor.contact_person &&
+                            !vendor.phone_number && (
+                              <span className="text-xs text-slate-400">
+                                No contact details
+                              </span>
+                            )}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-semibold text-slate-700">
+                          {vendor.transaction_count ?? 0}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div>
+                          <p
+                            className={`text-sm font-bold ${
+                              Number(vendor.total_balance || 0) > 0
+                                ? "text-amber-700"
+                                : "text-emerald-700"
+                            }`}
+                          >
+                            {formatCurrency(vendor.total_balance)}
+                          </p>
+
+                          <p className="mt-0.5 text-[11px] text-slate-400">
+                            of {formatCurrency(vendor.total_amount)}
+                          </p>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {vendor.is_active ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            Inactive
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedVendor(vendor);
+                            setShowDetailModal(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Vendor Cards */}
+            <div className="divide-y divide-slate-100 md:hidden">
+              {paginatedVendors.map((vendor) => (
+                <div key={vendor.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
+                      {getInitials(vendor.vendor_name)}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-bold text-slate-900">
+                            {vendor.vendor_name}
+                          </h3>
+
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                            {vendor.service_type || "General supplier"}
+                          </p>
+                        </div>
+
+                        {vendor.is_active ? (
+                          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Transactions
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold text-slate-700">
+                            {vendor.transaction_count ?? 0}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Balance
+                          </p>
+
+                          <p
+                            className={`mt-1 text-sm font-bold ${
+                              Number(vendor.total_balance || 0) > 0
+                                ? "text-amber-700"
+                                : "text-emerald-700"
+                            }`}
+                          >
+                            {formatCurrency(vendor.total_balance)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVendor(vendor);
+                          setShowDetailModal(true);
+                        }}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View Vendor
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {paginatedVendors.length === 0 && (
+              <div className="px-6 py-16 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <Store className="h-6 w-6 text-slate-400" />
+                </div>
+
+                <h3 className="mt-4 text-sm font-bold text-slate-900">
+                  No vendors found
+                </h3>
+
+                <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">
+                  {searchTerm || statusFilter !== "all"
+                    ? "Try changing your search or filter to find a vendor."
+                    : "There are currently no vendors registered in the system."}
+                </p>
+
+                {(searchTerm || statusFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("all");
+                    }}
+                    className="mt-4 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    Clear filters
+                  </button>
                 )}
-                subtext={`${formatCurrency(
-                  payroll?.total_amount_pending || 0
-                )} pending`}
-                icon={CircleDollarSign}
-                iconBg="bg-amber-50"
-                iconColor="text-amber-600"
-                onClick={() =>
-                  navigate("/manager/daily-wages")
-                }
-              />
-
-              <StatCard
-                label="Vehicles"
-                value={stats.totalVehicles}
-                subtext="Registered vehicles"
-                icon={Truck}
-                iconBg="bg-violet-50"
-                iconColor="text-violet-600"
-                onClick={() =>
-                  navigate("/manager/vehicles")
-                }
-              />
-
-              <StatCard
-                label="Fuel Purchased"
-                value={`${formatNumber(
-                  fuel?.fuel_purchased_litres || 0
-                )} L`}
-                subtext={`${formatNumber(
-                  fuel?.fuel_issued_litres || 0
-                )} L issued`}
-                icon={Fuel}
-                iconBg="bg-orange-50"
-                iconColor="text-orange-600"
-                onClick={() =>
-                  navigate("/manager/fuel")
-                }
-              />
-
-              <StatCard
-                label="Fuel Remaining"
-                value={`${formatNumber(
-                  fuel?.fuel_remaining_litres || 0
-                )} L`}
-                subtext="Available in stock"
-                icon={Fuel}
-                iconBg="bg-cyan-50"
-                iconColor="text-cyan-600"
-                onClick={() =>
-                  navigate("/manager/fuel")
-                }
-              />
-
-              <StatCard
-                label="Total Vendors"
-                value={stats.totalVendors}
-                subtext={`${stats.activeVendors} active`}
-                icon={Store}
-                iconBg="bg-rose-50"
-                iconColor="text-rose-600"
-                onClick={() =>
-                  navigate("/manager/vendors")
-                }
-              />
-
-              <StatCard
-                label="Expenses"
-                value="Manage expenses"
-                subtext="View and record operational expenses"
-                icon={Receipt}
-                iconBg="bg-slate-100"
-                iconColor="text-slate-700"
-                onClick={() =>
-                  navigate("/manager/expenses")
-                }
-              />
-            </div>
-          </section>
-
-          {/* ==================================================
-              TODAY'S ATTENDANCE
-          ================================================== */}
-
-          <section className="mt-10">
-            <div className="mb-5">
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-600">
-                Workforce
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Today's Attendance
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <AttendanceSummary
-                icon={UserCheck}
-                label="Present"
-                value={stats.presentToday}
-                description="Employees marked present"
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-600"
-              />
-
-              <AttendanceSummary
-                icon={UserX}
-                label="Absent"
-                value={stats.absentToday}
-                description="Employees marked absent"
-                iconBg="bg-red-50"
-                iconColor="text-red-600"
-              />
-
-              <AttendanceSummary
-                icon={Clock3}
-                label="Unmarked"
-                value={stats.unmarkedToday}
-                description="Awaiting attendance"
-                iconBg="bg-amber-50"
-                iconColor="text-amber-600"
-              />
-            </div>
-          </section>
-
-          {/* ==================================================
-              MANAGER PROFILE
-          ================================================== */}
-
-          <section className="mt-10 pb-8">
-            <div className="mb-5">
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-600">
-                Account
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Manager Profile
-              </h2>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <ShieldCheck size={23} />
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-slate-900">
-                      {fullName}
-                    </h3>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                    Manager Account
-                  </span>
-                </div>
               </div>
+            )}
 
-              <div className="border-t border-slate-100 bg-slate-50 px-5 py-4 sm:px-6">
-                <p className="text-xs leading-relaxed text-slate-500">
-                  Your manager account provides access to
-                  workforce and operational modules assigned to
-                  the manager role. Use the sidebar to navigate
-                  between modules.
+            {/* Pagination */}
+            {filteredVendors.length > 0 && (
+              <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <p className="text-xs text-slate-500">
+                  Showing{" "}
+                  <span className="font-semibold text-slate-700">
+                    {firstItem}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-slate-700">
+                    {lastItem}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-700">
+                    {filteredVendors.length}
+                  </span>{" "}
+                  vendors
                 </p>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1
+                  )
+                    .filter((page) => {
+                      if (totalPages <= 5) return true;
+
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 1
+                      );
+                    })
+                    .map((page, index, pages) => {
+                      const previousPage = pages[index - 1];
+
+                      const showEllipsis =
+                        previousPage && page - previousPage > 1;
+
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsis && (
+                            <span className="px-1 text-xs text-slate-400">
+                              ...
+                            </span>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
+                              currentPage === page
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() =>
+                      setCurrentPage((page) =>
+                        Math.min(totalPages, page + 1)
+                      )
+                    }
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         </main>
       </div>
-    </div>
-  );
-}
 
-/* ============================================================
-   STAT CARD
-============================================================ */
-
-function StatCard({
-  label,
-  value,
-  subtext,
-  icon: Icon,
-  iconBg,
-  iconColor,
-  onClick,
-}: {
-  label: string;
-  value: string | number;
-  subtext?: string;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
-    >
-      <div className="flex items-start justify-between">
+      {/* Vendor Detail Modal */}
+      {showDetailModal && selectedVendor && (
         <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDetailModal(false);
+            }
+          }}
         >
-          <Icon
-            size={21}
-            className={iconColor}
-          />
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-5 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+                  {getInitials(selectedVendor.vendor_name)}
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-slate-950">
+                    {selectedVendor.vendor_name}
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Vendor details
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close vendor details"
+                onClick={() => setShowDetailModal(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="space-y-6 px-5 py-6 sm:px-6">
+              {/* Status */}
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Account Status
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                    {selectedVendor.is_active
+                      ? "Vendor is active"
+                      : "Vendor is inactive"}
+                  </p>
+                </div>
+
+                {selectedVendor.is_active ? (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                    <XCircle className="h-5 w-5" />
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Information */}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Vendor Information
+                  </h3>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Service Type
+                    </p>
+
+                    <p className="mt-1.5 text-sm font-semibold text-slate-800">
+                      {selectedVendor.service_type || "Not specified"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Contact Person
+                    </p>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <UserRound className="h-4 w-4 text-slate-400" />
+
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedVendor.contact_person || "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Phone Number
+                    </p>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-slate-400" />
+
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedVendor.phone_number || "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Physical Address
+                    </p>
+
+                    <div className="mt-1.5 flex items-start gap-2">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedVendor.physical_address ||
+                          "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Summary */}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <CircleDollarSign className="h-4 w-4 text-blue-600" />
+
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Transaction Summary
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Transactions
+                    </p>
+
+                    <p className="mt-1.5 text-lg font-bold text-slate-900">
+                      {selectedVendor.transaction_count ?? 0}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Total Amount
+                    </p>
+
+                    <p className="mt-1.5 text-sm font-bold text-slate-900">
+                      {formatCurrency(selectedVendor.total_amount)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Outstanding
+                    </p>
+
+                    <p
+                      className={`mt-1.5 text-sm font-bold ${
+                        Number(selectedVendor.total_balance || 0) > 0
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                      }`}
+                    >
+                      {formatCurrency(selectedVendor.total_balance)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="border-t border-slate-200 pt-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Registered
+                    </p>
+
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatDateFull(selectedVendor.created_at)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Last Updated
+                    </p>
+
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {formatDateFull(selectedVendor.updated_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
-
-        <ArrowUpRight
-          size={17}
-          className="text-slate-300 transition group-hover:text-blue-500"
-        />
-      </div>
-
-      <p className="mt-4 text-xs font-medium text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-        {value}
-      </p>
-
-      {subtext && (
-        <p className="mt-1 text-xs text-slate-400">
-          {subtext}
-        </p>
       )}
-    </button>
-  );
-}
-
-/* ============================================================
-   ATTENDANCE SUMMARY
-============================================================ */
-
-function AttendanceSummary({
-  icon: Icon,
-  label,
-  value,
-  description,
-  iconBg,
-  iconColor,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-  description: string;
-  iconBg: string;
-  iconColor: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-4">
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}
-        >
-          <Icon
-            size={21}
-            className={iconColor}
-          />
-        </div>
-
-        <div>
-          <p className="text-xs font-medium text-slate-500">
-            {label}
-          </p>
-
-          <p className="mt-0.5 text-2xl font-bold text-slate-900">
-            {value}
-          </p>
-        </div>
-      </div>
-
-      <p className="mt-4 text-xs text-slate-400">
-        {description}
-      </p>
     </div>
   );
 }
