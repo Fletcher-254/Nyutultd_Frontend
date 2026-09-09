@@ -185,13 +185,6 @@ export default function Home() {
       setShowPassword(false);
       setErrorMessage("");
 
-      /**
-       * Redirect according to role.
-       *
-       * admin    -> /admin/dashboard
-       * manager  -> /manager/dashboard
-       * director -> /director/dashboard
-       */
       router.replace(destination);
     } catch (error: unknown) {
       const message =
