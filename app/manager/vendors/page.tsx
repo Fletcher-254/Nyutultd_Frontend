@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
 import {
   LayoutDashboard,
   Users,
@@ -21,12 +20,7 @@ import {
   Search,
   Filter,
   ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  RefreshCw,
-  Plus,
   Eye,
-  Edit,
-  Trash2,
   Building2,
   Phone,
   MapPin,
@@ -36,21 +30,16 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Clock,
   Calendar,
   FileText,
   Receipt,
-  TrendingUp,
-  TrendingDown,
-  Minus,
+  RefreshCw,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -58,7 +47,12 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
   role: Role;
+  is_active?: boolean;
+  is_verified?: boolean;
+  created_at?: string;
 }
 
 interface Vendor {
@@ -69,62 +63,59 @@ interface Vendor {
   phone_number: string | null;
   physical_address: string | null;
   is_active: boolean;
+
   transaction_count: number;
   total_amount: number | string;
   total_paid: number | string;
   total_balance: number | string;
+
   can_delete: boolean;
   created_at: string;
   updated_at: string;
 }
 
 interface Module {
-  name: string;
-  description: string;
+  label: string;
   href: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 const modules: Module[] = [
   {
-    name: "Employees",
-    description: "View and manage employee records",
+    label: "Employees",
     href: "/manager/employees",
     icon: Users,
   },
   {
-    name: "Attendance",
-    description: "Monitor daily attendance",
+    label: "Attendance",
     href: "/manager/attendance",
     icon: CalendarCheck,
   },
   {
-    name: "Daily Wages",
-    description: "View casual employee wages",
+    label: "Daily Wages",
     href: "/manager/daily-wages",
     icon: CircleDollarSign,
   },
   {
-    name: "Vehicles",
-    description: "View company vehicles",
+    label: "Vehicles",
     href: "/manager/vehicles",
     icon: Truck,
   },
   {
-    name: "Fuel",
-    description: "Monitor fuel usage",
+    label: "Fuel",
     href: "/manager/fuel",
     icon: Fuel,
   },
   {
-    name: "Vendors",
-    description: "View vendors and transactions",
+    label: "Vendors",
     href: "/manager/vendors",
     icon: Store,
   },
 ];
 
-function formatCurrency(value: number | string) {
+const ITEMS_PER_PAGE = 10;
+
+function formatCurrency(value: number | string | null | undefined) {
   const amount = Number(value || 0);
 
   return new Intl.NumberFormat("en-KE", {
@@ -134,61 +125,79 @@ function formatCurrency(value: number | string) {
   }).format(amount);
 }
 
-function formatDate(dateString: string) {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-KE", {
-    year: "numeric",
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "2-digit",
     month: "short",
-    day: "numeric",
-  });
+    year: "numeric",
+  }).format(date);
 }
 
-function formatDateFull(dateString: string) {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-KE", {
-    year: "numeric",
+function formatDateFull(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("en-KE", {
+    day: "2-digit",
     month: "long",
-    day: "numeric",
-  });
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 function getStatusBadge(isActive: boolean) {
   if (isActive) {
     return {
-      color: "bg-green-50 text-green-700 border-green-200",
-      icon: <CheckCircle className="h-3.5 w-3.5" />,
       label: "Active",
+      className:
+        "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+      icon: CheckCircle,
     };
   }
+
   return {
-    color: "bg-red-50 text-red-700 border-red-200",
-    icon: <XCircle className="h-3.5 w-3.5" />,
     label: "Inactive",
+    className:
+      "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
+    icon: XCircle,
   };
 }
 
 function getBalanceStatus(balance: number | string) {
   const amount = Number(balance || 0);
-  if (amount === 0) {
-    return {
-      color: "text-slate-500",
-      icon: <Minus className="h-4 w-4" />,
-      label: "Settled",
-    };
-  }
+
   if (amount > 0) {
     return {
-      color: "text-red-600",
-      icon: <TrendingUp className="h-4 w-4" />,
-      label: "Due",
+      label: "Outstanding",
+      className:
+        "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+      icon: AlertTriangle,
     };
   }
+
   return {
-    color: "text-green-600",
-    icon: <TrendingDown className="h-4 w-4" />,
-    label: "Overpaid",
+    label: "Paid",
+    className:
+      "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+    icon: CheckCircle,
   };
 }
 
@@ -197,23 +206,30 @@ export default function VendorsPage() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+
   const [me, setMe] = useState<Me | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+
   const [currentPage, setCurrentPage] = useState(1);
+
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
-  const ITEMS_PER_PAGE = 10;
 
   const authenticatedFetch = useCallback(
     async (endpoint: string, options: RequestInit = {}) => {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         credentials: "include",
+        cache: "no-store",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -223,133 +239,229 @@ export default function VendorsPage() {
 
       if (response.status === 401) {
         router.replace("/");
-        throw new Error("Your session has expired.");
+        throw new Error("Your session has expired. Please log in again.");
+      }
+
+      let data: unknown = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
       }
 
       if (!response.ok) {
-        let message = `Request failed with status ${response.status}.`;
-
-        try {
-          const data = await response.json();
-
-          if (typeof data?.detail === "string") {
-            message = data.detail;
-          } else if (typeof data?.error === "string") {
-            message = data.error;
-          }
-        } catch {
-          // Keep the default error message.
-        }
+        const message =
+          typeof data === "object" &&
+          data !== null &&
+          "detail" in data &&
+          typeof data.detail === "string"
+            ? data.detail
+            : typeof data === "object" &&
+                data !== null &&
+                "error" in data &&
+                typeof data.error === "string"
+              ? data.error
+              : `Request failed with status ${response.status}.`;
 
         throw new Error(message);
       }
 
-      return response.json();
+      return data;
     },
     [router]
   );
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadData = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-    try {
-      const [meData, vendorsData] = await Promise.all([
-        authenticatedFetch("/me/"),
-        authenticatedFetch("/vendors/"),
-      ]);
+        setError("");
 
-      // Check role
-      if (meData.role === "admin") {
-        router.replace("/admin/dashboard");
-        return;
+        const [profileData, vendorsData] = await Promise.all([
+          authenticatedFetch("/me/"),
+          authenticatedFetch("/vendors/"),
+        ]);
+
+        const profile = profileData as Me;
+
+        if (profile.role === "admin") {
+          router.replace("/admin/dashboard");
+          return;
+        }
+
+        if (profile.role === "director") {
+          router.replace("/director/dashboard");
+          return;
+        }
+
+        if (profile.role !== "manager") {
+          router.replace("/");
+          return;
+        }
+
+        setMe(profile);
+
+        const vendorList = Array.isArray(vendorsData)
+          ? vendorsData
+          : Array.isArray(
+                (vendorsData as { results?: Vendor[] })?.results
+              )
+            ? (vendorsData as { results: Vendor[] }).results
+            : [];
+
+        setVendors(vendorList);
+        setCurrentPage(1);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Unable to load vendors.");
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      if (meData.role === "director") {
-        router.replace("/director/dashboard");
-        return;
-      }
-
-      if (meData.role !== "manager") {
-        router.replace("/");
-        return;
-      }
-
-      setMe(meData);
-      setVendors(Array.isArray(vendorsData) ? vendorsData : []);
-      setCurrentPage(1);
-    } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError("Unable to load vendors data.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [authenticatedFetch, router]);
+    },
+    [authenticatedFetch, router]
+  );
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Filter vendors
-  const filteredVendors = vendors.filter((vendor) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      vendor.vendor_name.toLowerCase().includes(searchLower) ||
-      (vendor.contact_person?.toLowerCase().includes(searchLower) ?? false) ||
-      vendor.service_type.toLowerCase().includes(searchLower) ||
-      (vendor.phone_number?.toLowerCase().includes(searchLower) ?? false);
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && vendor.is_active) ||
-      (statusFilter === "inactive" && !vendor.is_active);
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalPages = Math.ceil(filteredVendors.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedVendors = filteredVendors.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  // Stats
-  const stats = {
-    total: vendors.length,
-    active: vendors.filter((v) => v.is_active).length,
-    inactive: vendors.filter((v) => !v.is_active).length,
-    totalDue: vendors.reduce((sum, v) => sum + Number(v.total_balance || 0), 0),
-  };
-
-  const greeting = (() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  })();
 
   const handleLogout = async () => {
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       });
     } catch {
-      // Even if the logout request fails, leave the dashboard.
+      // Even if the server request fails, clear the client route.
     } finally {
       router.replace("/");
     }
   };
 
+  const navigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
+
+  const filteredVendors = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return vendors.filter((vendor) => {
+      const matchesSearch =
+        !search ||
+        vendor.vendor_name.toLowerCase().includes(search) ||
+        (vendor.contact_person || "").toLowerCase().includes(search) ||
+        vendor.service_type.toLowerCase().includes(search) ||
+        (vendor.phone_number || "").toLowerCase().includes(search);
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && vendor.is_active) ||
+        (statusFilter === "inactive" && !vendor.is_active);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [vendors, searchTerm, statusFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredVendors.length / ITEMS_PER_PAGE)
+  );
+
+  const paginatedVendors = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+
+    return filteredVendors.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredVendors, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const stats = useMemo(() => {
+    const total = vendors.length;
+
+    const active = vendors.filter((vendor) => vendor.is_active).length;
+
+    const inactive = vendors.filter((vendor) => !vendor.is_active).length;
+
+    const outstanding = vendors.reduce(
+      (sum, vendor) => sum + Number(vendor.total_balance || 0),
+      0
+    );
+
+    const totalValue = vendors.reduce(
+      (sum, vendor) => sum + Number(vendor.total_amount || 0),
+      0
+    );
+
+    const totalPaid = vendors.reduce(
+      (sum, vendor) => sum + Number(vendor.total_paid || 0),
+      0
+    );
+
+    return {
+      total,
+      active,
+      inactive,
+      outstanding,
+      totalValue,
+      totalPaid,
+    };
+  }, [vendors]);
+
+  const openVendor = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setShowDetailModal(true);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-          <p className="mt-4 text-sm font-medium text-white">Loading vendors...</p>
-          <p className="mt-1 text-xs text-slate-400">Fetching vendor data</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
+          </div>
+
+          <h2 className="text-lg font-semibold text-slate-900">
+            Loading vendors...
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Verifying secure access
+          </p>
         </div>
       </div>
     );
@@ -357,18 +469,24 @@ export default function VendorsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">Unable to load data</h1>
+
+          <h2 className="text-lg font-semibold text-slate-900">
+            Unable to load vendors
+          </h2>
+
           <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
           <button
-            onClick={loadData}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            onClick={() => loadData()}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Try again
+            <RefreshCw className="h-4 w-4" />
+            Try Again
           </button>
         </div>
       </div>
@@ -376,520 +494,1058 @@ export default function VendorsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Vendor Detail Modal */}
-      {showDetailModal && selectedVendor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2.5">
-                  <Building2 className="h-6 w-6 text-slate-700" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {selectedVendor.vendor_name}
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Vendor Details
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  setSelectedVendor(null);
-                }}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Store className="h-4 w-4" />
-                  <span>Service Type</span>
-                </div>
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVendor.service_type}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <span className="h-4 w-4" />
-                  <span>Status</span>
-                </div>
-                <div className="mt-2">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                    selectedVendor.is_active
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : "bg-red-50 text-red-700 border-red-200"
-                  }`}>
-                    {selectedVendor.is_active ? (
-                      <CheckCircle className="h-3.5 w-3.5" />
-                    ) : (
-                      <XCircle className="h-3.5 w-3.5" />
-                    )}
-                    {selectedVendor.is_active ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-
-              {selectedVendor.contact_person && (
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <User className="h-4 w-4" />
-                    <span>Contact Person</span>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {selectedVendor.contact_person}
-                  </p>
-                </div>
-              )}
-
-              {selectedVendor.phone_number && (
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Phone className="h-4 w-4" />
-                    <span>Phone Number</span>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {selectedVendor.phone_number}
-                  </p>
-                </div>
-              )}
-
-              {selectedVendor.physical_address && (
-                <div className="col-span-2 rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <MapPin className="h-4 w-4" />
-                    <span>Physical Address</span>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {selectedVendor.physical_address}
-                  </p>
-                </div>
-              )}
-
-              <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-700 mb-3">Financial Summary</p>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-500">Transactions</p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {selectedVendor.transaction_count}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Total Amount</p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {formatCurrency(selectedVendor.total_amount)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Balance Due</p>
-                    <p className={`text-lg font-semibold ${
-                      Number(selectedVendor.total_balance) > 0 ? "text-red-600" : "text-green-600"
-                    }`}>
-                      {formatCurrency(selectedVendor.total_balance)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  setSelectedVendor(null);
-                }}
-                className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+        />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
-          </div>
+        {/* Brand */}
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
+            type="button"
+            onClick={() => navigate("/manager/dashboard")}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">N</span>
+            </div>
+
+            <div className="text-left">
+              <p className="text-sm font-bold tracking-wide text-white">
+                NYUTU LTD
+              </p>
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+                ERP MANAGEMENT
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
-          </p>
+        {/* Navigation */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
 
-          <nav className="mt-3 space-y-1">
+          <nav className="space-y-1.5">
+            {/* Dashboard */}
             <button
-              onClick={() => router.push("/manager/dashboard")}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+              type="button"
+              onClick={() => navigate("/manager/dashboard")}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                isActive("/manager/dashboard")
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+              }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <LayoutDashboard
+                className={`h-5 w-5 ${
+                  isActive("/manager/dashboard")
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-slate-300"
+                }`}
+              />
+
+              <span className="flex-1">Dashboard</span>
+
+              {isActive("/manager/dashboard") && (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const isActive = pathname === module.href;
+              const active = isActive(module.href);
 
               return (
                 <button
-                  key={module.name}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
+                  key={module.href}
+                  type="button"
+                  onClick={() => navigate(module.href)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{module.name}</span>
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
+
+                  <span className="flex-1">{module.label}</span>
+
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 rounded-xl bg-white/5 p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <ShieldCheck className="h-5 w-5 text-slate-300" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Manager</p>
-                <p className="truncate text-xs text-slate-500">{me?.email}</p>
+        {/* Account / Sign Out — permanently visible at bottom */}
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              {firstName.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {fullName}
+              </p>
+
+              <p className="truncate text-xs text-slate-400">
+                {me?.email || "Manager"}
+              </p>
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
               </div>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            <LogOut className="h-4 w-4" />
+            Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="lg:pl-72">
+      {/* Main content */}
+      <main className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">Vendors</p>
-              <p className="text-xs text-slate-500">Manage vendors and transactions</p>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  {getGreeting()}
+                </p>
+
+                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  {firstName}
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Manager</p>
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-700">
+                  System Online
+                </span>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Breadcrumb */}
+          <div className="mb-6 flex items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => navigate("/manager/dashboard")}
+              className="font-medium text-slate-400 transition hover:text-blue-600"
+            >
+              Dashboard
+            </button>
+
+            <ChevronRight className="h-4 w-4 text-slate-300" />
+
+            <span className="font-semibold text-slate-700">Vendors</span>
+          </div>
+
+          {/* Page heading */}
+          <section className="mb-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Vendor Management
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  View and manage all vendors and their financial transactions.
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
+                    <Store className="h-5 w-5 text-blue-600" />
+                  </div>
+
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                    Operations
+                  </span>
+                </div>
+
+                <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                  Vendors
+                </h2>
+
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                  Manage and review the company&apos;s vendor relationships,
+                  services, and outstanding balances.
                 </p>
               </div>
+
               <button
-                onClick={loadData}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+                type="button"
+                onClick={() => loadData(true)}
+                disabled={refreshing}
+                className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
                 Refresh
               </button>
             </div>
           </section>
 
-          {/* Summary Cards */}
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Summary cards */}
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
-                  <Store className="h-5 w-5 text-slate-700" />
-                </div>
+              <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs text-slate-500">Total Vendors</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.total}</p>
-                </div>
-              </div>
-            </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Total Vendors
+                  </p>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-50 p-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Active</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.active}</p>
-                </div>
-              </div>
-            </div>
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.total}
+                  </p>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-red-50 p-2">
-                  <XCircle className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Inactive</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.inactive}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-yellow-50 p-2">
-                  <DollarSign className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Total Balance Due</p>
-                  <p className={`text-2xl font-semibold ${
-                    stats.totalDue > 0 ? "text-red-600" : "text-green-600"
-                  }`}>
-                    {formatCurrency(stats.totalDue)}
+                  <p className="mt-1 text-xs text-slate-500">
+                    Registered vendors
                   </p>
                 </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                  <Store className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Active Vendors
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.active}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Currently active
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Inactive Vendors
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.inactive}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Currently inactive
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <XCircle className="h-5 w-5 text-slate-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Outstanding
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {formatCurrency(stats.outstanding)}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Vendor balances due
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
               </div>
             </div>
           </section>
 
-          {/* Filters */}
-          <section className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, contact, service..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full rounded-lg border border-slate-200 pl-9 pr-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                />
+          {/* Financial overview */}
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                  Financial Overview
+                </p>
+
+                <h3 className="mt-1 text-lg font-bold text-slate-950">
+                  Vendor transactions
+                </h3>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-slate-400" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              <div className="hidden rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 sm:block">
+                Current records
               </div>
             </div>
 
-            <div className="text-sm text-slate-500">
-              {filteredVendors.length} vendor{filteredVendors.length !== 1 ? "s" : ""}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-blue-600" />
+                  <span className="text-xs font-semibold text-slate-500">
+                    Total Transaction Value
+                  </span>
+                </div>
+
+                <p className="text-xl font-bold text-slate-950">
+                  {formatCurrency(stats.totalValue)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-emerald-600" />
+                  <span className="text-xs font-semibold text-slate-500">
+                    Total Paid
+                  </span>
+                </div>
+
+                <p className="text-xl font-bold text-slate-950">
+                  {formatCurrency(stats.totalPaid)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs font-semibold text-slate-500">
+                    Balance Due
+                  </span>
+                </div>
+
+                <p className="text-xl font-bold text-slate-950">
+                  {formatCurrency(stats.outstanding)}
+                </p>
+              </div>
             </div>
           </section>
 
-          {/* Table */}
-          <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Vendor</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Service</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Contact</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Total</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Balance</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedVendors.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
-                        <div className="flex flex-col items-center gap-2">
-                          <Store className="h-8 w-8 text-slate-300" />
-                          <p>No vendors found</p>
-                          <p className="text-xs text-slate-400">
-                            {searchTerm || statusFilter !== "all"
-                              ? "Try adjusting your filters"
-                              : "No vendors have been registered yet"}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedVendors.map((vendor) => {
-                      const status = getStatusBadge(vendor.is_active);
-                      const balanceStatus = getBalanceStatus(vendor.total_balance);
-                      return (
-                        <tr key={vendor.id} className="hover:bg-slate-50/50 transition">
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-                                <Building2 className="h-4 w-4 text-slate-600" />
+          {/* Vendors table */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* Table header */}
+            <div className="border-b border-slate-200 p-5 sm:p-6">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                    Vendor Directory
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-slate-950">
+                    All Vendors
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {filteredVendors.length} vendor
+                    {filteredVendors.length === 1 ? "" : "s"} found
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setCurrentPage(1);
+                      }}
+                      placeholder="Search vendors..."
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-64"
+                    />
+                  </div>
+
+                  {/* Filter */}
+                  <div className="relative">
+                    <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <select
+                      value={statusFilter}
+                      onChange={(event) => {
+                        setStatusFilter(
+                          event.target.value as
+                            | "all"
+                            | "active"
+                            | "inactive"
+                        );
+                        setCurrentPage(1);
+                      }}
+                      className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-36"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Empty state */}
+            {paginatedVendors.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                  <Store className="h-7 w-7 text-slate-400" />
+                </div>
+
+                <h4 className="text-base font-bold text-slate-900">
+                  No vendors found
+                </h4>
+
+                <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-500">
+                  {searchTerm || statusFilter !== "all"
+                    ? "Try adjusting your search or filter to find the vendor you are looking for."
+                    : "There are currently no vendors available."}
+                </p>
+
+                {(searchTerm || statusFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("all");
+                    }}
+                    className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="hidden overflow-x-auto lg:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/70">
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Vendor
+                        </th>
+
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Service
+                        </th>
+
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Contact
+                        </th>
+
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Transactions
+                        </th>
+
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Balance
+                        </th>
+
+                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Status
+                        </th>
+
+                        <th className="px-6 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedVendors.map((vendor) => {
+                        const status = getStatusBadge(vendor.is_active);
+                        const balanceStatus = getBalanceStatus(
+                          vendor.total_balance
+                        );
+
+                        const StatusIcon = status.icon;
+                        const BalanceIcon = balanceStatus.icon;
+
+                        return (
+                          <tr
+                            key={vendor.id}
+                            className="group transition hover:bg-slate-50/70"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                  <Building2 className="h-5 w-5" />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-slate-900">
+                                    {vendor.vendor_name}
+                                  </p>
+
+                                  <p className="mt-0.5 text-xs text-slate-400">
+                                    Added {formatDate(vendor.created_at)}
+                                  </p>
+                                </div>
                               </div>
+                            </td>
+
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-medium text-slate-700">
+                                {vendor.service_type || "—"}
+                              </span>
+                            </td>
+
+                            <td className="px-6 py-4">
                               <div>
-                                <p className="font-medium text-slate-900">
-                                  {vendor.vendor_name}
+                                <p className="text-sm font-medium text-slate-700">
+                                  {vendor.contact_person || "—"}
                                 </p>
-                                <p className="text-xs text-slate-400">
-                                  {vendor.transaction_count} transaction{vendor.transaction_count !== 1 ? "s" : ""}
-                                </p>
+
+                                {vendor.phone_number && (
+                                  <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                                    <Phone className="h-3 w-3" />
+                                    {vendor.phone_number}
+                                  </p>
+                                )}
                               </div>
+                            </td>
+
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-bold text-slate-800">
+                                {vendor.transaction_count}
+                              </span>
+                            </td>
+
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="text-sm font-bold text-slate-900">
+                                  {formatCurrency(vendor.total_balance)}
+                                </p>
+
+                                <span
+                                  className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${balanceStatus.className}`}
+                                >
+                                  <BalanceIcon className="h-3 w-3" />
+                                  {balanceStatus.label}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold ${status.className}`}
+                              >
+                                <StatusIcon className="h-3.5 w-3.5" />
+                                {status.label}
+                              </span>
+                            </td>
+
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => openVendor(vendor)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile/tablet cards */}
+                <div className="divide-y divide-slate-100 lg:hidden">
+                  {paginatedVendors.map((vendor) => {
+                    const status = getStatusBadge(vendor.is_active);
+                    const balanceStatus = getBalanceStatus(
+                      vendor.total_balance
+                    );
+
+                    const StatusIcon = status.icon;
+                    const BalanceIcon = balanceStatus.icon;
+
+                    return (
+                      <div
+                        key={vendor.id}
+                        className="p-5 transition hover:bg-slate-50/70 sm:p-6"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                              <Building2 className="h-5 w-5" />
                             </div>
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-600">
-                            {vendor.service_type}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="text-slate-600">
+
+                            <div className="min-w-0">
+                              <h4 className="truncate text-sm font-bold text-slate-900">
+                                {vendor.vendor_name}
+                              </h4>
+
+                              <p className="mt-1 text-xs text-slate-400">
+                                {vendor.service_type || "No service type"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[10px] font-bold ${status.className}`}
+                          >
+                            <StatusIcon className="h-3 w-3" />
+                            {status.label}
+                          </span>
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-2 gap-3">
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Contact
+                            </p>
+
+                            <p className="mt-1 truncate text-xs font-semibold text-slate-700">
                               {vendor.contact_person || "—"}
-                            </div>
-                            {vendor.phone_number && (
-                              <div className="text-xs text-slate-400">
-                                {vendor.phone_number}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-medium text-slate-900">
-                            {formatCurrency(vendor.total_amount)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right">
-                            <div className={`flex items-center justify-end gap-1.5 font-medium ${balanceStatus.color}`}>
-                              {balanceStatus.icon}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Transactions
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-700">
+                              {vendor.transaction_count}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Balance
+                            </p>
+
+                            <p className="mt-1 text-xs font-bold text-slate-900">
                               {formatCurrency(vendor.total_balance)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.color}`}>
-                              {status.icon}
-                              {status.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedVendor(vendor);
-                                setShowDetailModal(true);
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Added
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-700">
+                              {formatDate(vendor.created_at)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-bold ${balanceStatus.className}`}
+                          >
+                            <BalanceIcon className="h-3 w-3" />
+                            {balanceStatus.label}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => openVendor(vendor)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
-                <div className="text-sm text-slate-500">
-                  Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredVendors.length)} of{" "}
-                  {filteredVendors.length}
-                </div>
-                <div className="flex gap-1.5">
+            {filteredVendors.length > 0 && (
+              <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-xs text-slate-500">
+                  Showing{" "}
+                  <span className="font-semibold text-slate-700">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-slate-700">
+                    {Math.min(
+                      currentPage * ITEMS_PER_PAGE,
+                      filteredVendors.length
+                    )}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-700">
+                    {filteredVendors.length}
+                  </span>
+                </p>
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    type="button"
                     disabled={currentPage === 1}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                        page === currentPage
-                          ? "bg-slate-900 text-white"
-                          : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+
+                  <span className="min-w-20 text-center text-xs font-semibold text-slate-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    type="button"
                     disabled={currentPage === totalPages}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() =>
+                      setCurrentPage((page) =>
+                        Math.min(totalPages, page + 1)
+                      )
+                    }
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Next page"
                   >
-                    <ChevronRightIcon className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             )}
           </section>
 
-          {/* Footer */}
-          <footer className="mt-9 border-t border-slate-200 pt-6">
-            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-              <p>Management Portal · Manager Access</p>
+          {/* Profile / account */}
+          <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                Account
+              </p>
+
+              <h3 className="mt-1 text-lg font-bold text-slate-950">
+                Manager Profile
+              </h3>
             </div>
+
+            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-lg font-black text-white shadow-lg shadow-blue-600/20">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h4 className="text-base font-bold text-slate-950">
+                  {fullName}
+                </h4>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {me?.email || "—"}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+
+                <span className="text-xs font-bold text-emerald-700">
+                  Manager Account
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="py-6 text-center">
+            <p className="text-xs text-slate-400">
+              Nyutu Ltd Enterprise Management System
+            </p>
+
+            <p className="mt-1 text-[10px] text-slate-400">
+              Secure operations management
+            </p>
           </footer>
-        </main>
-      </div>
+        </div>
+      </main>
+
+      {/* Vendor Detail Modal */}
+      {showDetailModal && selectedVendor && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDetailModal(false);
+            }
+          }}
+        >
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {/* Modal header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Building2 className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-bold text-slate-950">
+                    {selectedVendor.vendor_name}
+                  </h3>
+
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Vendor #{selectedVendor.id}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                aria-label="Close vendor details"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6">
+              {/* Status row */}
+              <div className="mb-6 flex flex-wrap items-center gap-2">
+                {(() => {
+                  const status = getStatusBadge(selectedVendor.is_active);
+                  const StatusIcon = status.icon;
+
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${status.className}`}
+                    >
+                      <StatusIcon className="h-3.5 w-3.5" />
+                      {status.label}
+                    </span>
+                  );
+                })()}
+
+                {(() => {
+                  const balanceStatus = getBalanceStatus(
+                    selectedVendor.total_balance
+                  );
+                  const BalanceIcon = balanceStatus.icon;
+
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${balanceStatus.className}`}
+                    >
+                      <BalanceIcon className="h-3.5 w-3.5" />
+                      {balanceStatus.label}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* Details */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Service Type
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {selectedVendor.service_type || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <User className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Contact Person
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {selectedVendor.contact_person || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Phone Number
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {selectedVendor.phone_number || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Physical Address
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-semibold text-slate-800">
+                    {selectedVendor.physical_address || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Financial summary */}
+              <div className="mt-6">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                  Financial Summary
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-slate-400">
+                      Transactions
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-slate-950">
+                      {selectedVendor.transaction_count}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-slate-400">
+                      Total Amount
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-slate-950">
+                      {formatCurrency(selectedVendor.total_amount)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                    <p className="text-xs font-medium text-slate-500">
+                      Balance Due
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-slate-950">
+                      {formatCurrency(selectedVendor.total_balance)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Created
+                    </p>
+
+                    <p className="mt-1 text-sm font-medium text-slate-700">
+                      {formatDateFull(selectedVendor.created_at)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Last Updated
+                    </p>
+
+                    <p className="mt-1 text-sm font-medium text-slate-700">
+                      {formatDateFull(selectedVendor.updated_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close */}
+              <div className="mt-6 flex justify-end border-t border-slate-200 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModal(false)}
+                  className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
