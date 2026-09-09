@@ -124,8 +124,7 @@ export default function Home() {
         );
       }
 
-      const role = data.user?.role;
-      const destination = getRoleDestination(role);
+      const destination = getRoleDestination(data.user?.role);
 
       if (!destination) {
         try {
@@ -167,7 +166,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950/30 text-white">
-      {/* Background Effects */}
+      {/* Background */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden"
@@ -176,14 +175,14 @@ export default function Home() {
 
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-purple-600/10 blur-3xl" />
 
-        <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/5 blur-2xl" />
+        <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 -translate-y-1/2 rounded-full bg-blue-500/5 blur-2xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         {/* Header */}
         <header className="flex shrink-0 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 text-sm font-black text-white shadow-lg shadow-blue-600/30 sm:h-10 sm:w-10 sm:text-base">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 text-sm font-black text-white shadow-lg shadow-blue-600/30 sm:h-10 sm:w-10">
               C
             </div>
 
@@ -207,13 +206,13 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Main */}
-        <section className="flex flex-1 items-center justify-center py-6 sm:py-8">
-          <div className="w-full max-w-md">
+        {/* Main Content */}
+        <section className="flex flex-1 items-center justify-center py-3 sm:py-4">
+          <div className="w-full max-w-[410px]">
             {/* Date */}
-            <div className="mb-5 flex justify-center sm:mb-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-gradient-to-r from-blue-600/10 to-purple-600/10 px-4 py-2 text-[11px] font-semibold text-blue-400 shadow-lg shadow-blue-600/5 backdrop-blur-sm sm:px-5 sm:py-2.5 sm:text-xs">
-                <span className="text-sm">📅</span>
+            <div className="mb-3 flex justify-center sm:mb-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-gradient-to-r from-blue-600/10 to-purple-600/10 px-4 py-1.5 text-[10px] font-semibold text-blue-400 shadow-lg shadow-blue-600/5 backdrop-blur-sm sm:px-5 sm:py-2 sm:text-xs">
+                <span className="text-xs sm:text-sm">📅</span>
 
                 <span className="tracking-wider">
                   {currentDate || "Loading..."}
@@ -221,24 +220,24 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {errorMessage && (
               <div
                 role="alert"
                 aria-live="polite"
-                className="mb-5 rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-500/10 to-rose-500/10 p-3.5 text-sm font-medium leading-relaxed text-red-400 shadow-xl backdrop-blur-sm sm:mb-6 sm:p-4"
+                className="mb-3 rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-500/10 to-rose-500/10 p-3 text-red-400 shadow-xl backdrop-blur-sm sm:mb-4 sm:p-3.5"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2.5">
                   <div className="mt-0.5 rounded-full bg-red-500/20 p-1">
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="h-3.5 w-3.5" />
                   </div>
 
-                  <div className="flex-1">
-                    <strong className="mb-1 block text-[11px] font-bold uppercase tracking-wider">
+                  <div className="min-w-0 flex-1">
+                    <strong className="mb-0.5 block text-[10px] font-bold uppercase tracking-wider">
                       Authentication Error
                     </strong>
 
-                    <span className="text-xs font-normal text-red-300/80">
+                    <span className="text-[11px] leading-relaxed text-red-300/80">
                       {errorMessage}
                     </span>
                   </div>
@@ -247,16 +246,17 @@ export default function Home() {
             )}
 
             {/* Login Card */}
-            <div className="group relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/60 p-6 shadow-2xl backdrop-blur-xl sm:p-7 lg:p-8">
+            <div className="group relative overflow-hidden rounded-3xl border border-slate-800/60 bg-slate-900/60 px-5 py-5 shadow-2xl backdrop-blur-xl sm:px-7 sm:py-6">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"
               />
 
-              <div className="relative mb-5 space-y-1 text-center sm:mb-6">
-                <div className="mb-2.5 flex justify-center">
-                  <div className="rounded-2xl border border-blue-500/20 bg-blue-600/10 p-2.5 sm:p-3">
-                    <Shield className="h-5 w-5 text-blue-400 sm:h-6 sm:w-6" />
+              {/* Card Header */}
+              <div className="relative mb-4 text-center">
+                <div className="mb-2 flex justify-center">
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-600/10 p-2.5">
+                    <Shield className="h-5 w-5 text-blue-400" />
                   </div>
                 </div>
 
@@ -264,21 +264,22 @@ export default function Home() {
                   Welcome Back
                 </h1>
 
-                <p className="text-xs font-light text-slate-400 sm:text-sm">
+                <p className="mt-1 text-xs font-light text-slate-400 sm:text-sm">
                   Enter your credentials to access your dashboard
                 </p>
               </div>
 
+              {/* Form */}
               <form
                 onSubmit={handleLogin}
-                className="relative space-y-4 sm:space-y-5"
+                className="relative space-y-3.5"
                 autoComplete="off"
               >
                 {/* Email */}
-                <div className="space-y-1.5 sm:space-y-2">
+                <div className="space-y-1.5">
                   <label
-                    className="flex items-center gap-2 text-[11px] font-medium text-slate-400 sm:text-xs"
                     htmlFor="email"
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 sm:text-xs"
                   >
                     <Mail className="h-3.5 w-3.5" />
                     Email Address
@@ -301,7 +302,7 @@ export default function Home() {
                       maxLength={254}
                       required
                       disabled={isLoading}
-                      className="w-full rounded-2xl border border-slate-800/60 bg-slate-950/80 py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 transition-all duration-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3"
+                      className="h-10 w-full rounded-xl border border-slate-800/60 bg-slate-950/80 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 transition-all duration-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11"
                     />
 
                     <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
@@ -309,11 +310,11 @@ export default function Home() {
                 </div>
 
                 {/* Password */}
-                <div className="space-y-1.5 sm:space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3">
                     <label
-                      className="flex items-center gap-2 text-[11px] font-medium text-slate-400 sm:text-xs"
                       htmlFor="password"
+                      className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 sm:text-xs"
                     >
                       <Lock className="h-3.5 w-3.5" />
                       Password
@@ -321,9 +322,9 @@ export default function Home() {
 
                     <button
                       type="button"
-                      className="text-[11px] font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs"
                       onClick={() => router.push("/forgot-password")}
                       disabled={isLoading}
+                      className="text-[10px] font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs"
                     >
                       Forgot Password?
                     </button>
@@ -344,7 +345,7 @@ export default function Home() {
                       maxLength={256}
                       required
                       disabled={isLoading}
-                      className="w-full rounded-2xl border border-slate-800/60 bg-slate-950/80 py-2.5 pl-10 pr-14 text-sm text-slate-200 placeholder-slate-600 transition-all duration-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3"
+                      className="h-10 w-full rounded-xl border border-slate-800/60 bg-slate-950/80 pl-10 pr-14 text-sm text-slate-200 placeholder-slate-600 transition-all duration-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11"
                     />
 
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
@@ -354,13 +355,13 @@ export default function Home() {
                       onClick={() =>
                         setShowPassword((previous) => !previous)
                       }
-                      className="absolute right-3.5 top-1/2 flex -translate-y-1/2 select-none items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={isLoading}
                       aria-label={
                         showPassword
                           ? "Hide password"
                           : "Show password"
                       }
+                      className="absolute right-3.5 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {showPassword ? (
                         <>
@@ -383,11 +384,11 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Submit */}
+                {/* Login Button */}
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="group relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 py-5 text-sm font-semibold tracking-wider text-white shadow-lg shadow-blue-600/20 transition-all duration-300 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-600/40 disabled:cursor-not-allowed disabled:opacity-50 sm:py-6"
+                  className="group relative mt-1 h-11 w-full overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-sm font-semibold tracking-wider text-white shadow-lg shadow-blue-600/20 transition-all duration-300 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-600/40 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12"
                 >
                   <div
                     aria-hidden="true"
@@ -395,11 +396,10 @@ export default function Home() {
                   />
 
                   {isLoading ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-
-                      <span>Verifying Access...</span>
-                    </div>
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying Access...
+                    </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <Shield className="h-4 w-4" />
@@ -408,53 +408,53 @@ export default function Home() {
                   )}
                 </Button>
 
-                {/* Security Message */}
-                <div className="pt-1 text-center sm:pt-2">
-                  <p className="text-[10px] text-slate-500 sm:text-xs">
-                    Secure encrypted connection • {currentYear}
-                  </p>
-                </div>
+                {/* Security */}
+                <p className="pt-0.5 text-center text-[10px] text-slate-500 sm:text-[11px]">
+                  Secure encrypted connection • {currentYear}
+                </p>
               </form>
             </div>
 
-            {/* Trust Badges */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:mt-5 sm:gap-6">
-              <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                <div className="h-1 w-1 rounded-full bg-emerald-400" />
-                <span>Secure Connection</span>
+            {/* Trust Indicators */}
+            <div className="mt-2.5 flex items-center justify-center gap-4 sm:mt-3 sm:gap-6">
+              <div className="flex items-center gap-1.5 text-[9px] text-slate-500 sm:text-[10px]">
+                <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                Secure Connection
               </div>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                <div className="h-1 w-1 rounded-full bg-emerald-400" />
-                <span>Protected Access</span>
+              <div className="flex items-center gap-1.5 text-[9px] text-slate-500 sm:text-[10px]">
+                <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                Protected Access
               </div>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                <div className="h-1 w-1 rounded-full bg-emerald-400" />
-                <span>2FA Ready</span>
+              <div className="flex items-center gap-1.5 text-[9px] text-slate-500 sm:text-[10px]">
+                <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                2FA Ready
               </div>
             </div>
           </div>
         </section>
 
         {/* Footer */}
-        <footer className="shrink-0 pt-3 sm:pt-4">
-          <div className="flex flex-col items-center justify-between gap-2.5 font-mono text-[9px] text-slate-600 sm:flex-row sm:text-[10px]">
-            <div className="flex items-center gap-3 sm:gap-4">
+        <footer className="shrink-0 pt-1.5">
+          <div className="flex items-center justify-center font-mono text-[8px] text-slate-600 sm:justify-between sm:text-[9px]">
+            <div className="flex items-center gap-3">
               <span>© {currentYear} NYUTU LIMITED</span>
 
               <span className="hidden sm:inline">•</span>
 
-              <span>Authorized Use Only</span>
+              <span className="hidden sm:inline">
+                Authorized Use Only
+              </span>
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="hidden items-center gap-3 sm:flex">
               <span className="flex items-center gap-1.5">
-                <div className="h-1 w-1 rounded-full bg-emerald-400/50" />
+                <span className="h-1 w-1 rounded-full bg-emerald-400/50" />
                 Active sessions monitored
               </span>
 
-              <span className="hidden sm:inline">•</span>
+              <span>•</span>
 
               <button
                 type="button"
