@@ -32,6 +32,7 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = {
@@ -46,9 +47,7 @@ export default function Home() {
     );
   }, []);
 
-  /**
-   * Decide where the user should go based on their role.
-   */
+ 
   const getRoleDestination = (role: unknown): string | null => {
     if (typeof role !== "string") {
       return null;
@@ -95,7 +94,7 @@ export default function Home() {
 
     try {
       const response = await fetch(
-        "http://localhost:8000/api/login/",
+         `${API_URL}/login/`,
         {
           method: "POST",
           headers: {
@@ -160,7 +159,7 @@ export default function Home() {
       if (!destination) {
         try {
           await fetch(
-            "http://localhost:8000/api/logout/",
+             `${API_URL}/logout/`,
             {
               method: "POST",
               credentials: "include",

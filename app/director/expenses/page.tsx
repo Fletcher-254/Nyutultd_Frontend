@@ -40,8 +40,13 @@ import {
   Briefcase,
 } from "lucide-react";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
 
 type Role = "admin" | "manager" | "director";
 
@@ -299,7 +304,7 @@ export default function DirectorExpensesPage() {
 
   const authenticatedFetch = useCallback(
     async (endpoint: string, options: RequestInit = {}) => {
-      const response = await fetch(`${API}${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         credentials: "include",
         headers: {
@@ -442,7 +447,7 @@ export default function DirectorExpensesPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
         headers: { Accept: "application/json" },

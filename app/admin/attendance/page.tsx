@@ -23,12 +23,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
 
-// ==================================================
-// TYPES
-// ==================================================
+
 
 type Employee = {
   id: number;
@@ -284,7 +286,7 @@ export default function AttendancePage() {
         // ------------------------------------------------
 
         const userResponse = await authenticatedFetch(
-          `${API}/me/`,
+          `${API_URL}/me/`,
           {
             method: "GET",
             headers: {
@@ -340,7 +342,7 @@ export default function AttendancePage() {
           yesterdayResponse,
         ] = await Promise.all([
           authenticatedFetch(
-            `${API}/employees/list/`,
+            `${API_URL}/employees/list/`,
             {
               method: "GET",
               headers: {
@@ -350,7 +352,7 @@ export default function AttendancePage() {
           ),
 
           authenticatedFetch(
-            `${API}/attendance/today/`,
+            `${API_URL}/attendance/today/`,
             {
               method: "GET",
               headers: {
@@ -360,7 +362,7 @@ export default function AttendancePage() {
           ),
 
           authenticatedFetch(
-            `${API}/attendance/yesterday/`,
+            `${API_URL}/attendance/yesterday/`,
             {
               method: "GET",
               headers: {
@@ -568,7 +570,7 @@ export default function AttendancePage() {
     try {
       const response =
         await authenticatedFetch(
-          `${API}/attendance/mark/`,
+          `${API_URL}/attendance/mark/`,
           {
             method: "POST",
             headers: {
@@ -727,7 +729,7 @@ export default function AttendancePage() {
     try {
       const response =
         await authenticatedFetch(
-          `${API}/attendance/mark-all-present/`,
+          `${API_URL}/attendance/mark-all-present/`,
           {
             method: "POST",
             headers: {
@@ -838,7 +840,7 @@ export default function AttendancePage() {
     setLoggingOut(true);
 
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
         headers: {

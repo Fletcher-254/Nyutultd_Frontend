@@ -102,9 +102,13 @@ const EMPTY_ISSUE_FORM: FuelIssueForm = {
   remarks: "",
 };
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
 
 export default function FuelPage() {
   const router = useRouter();
@@ -183,7 +187,7 @@ export default function FuelPage() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
         headers: { Accept: "application/json" },
@@ -243,7 +247,7 @@ export default function FuelPage() {
   // ==================================================
 
   const loadUser = useCallback(async () => {
-    const response = await authenticatedFetch(`${API}/me/`, {
+    const response = await authenticatedFetch(`${API_URL}/me/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -271,7 +275,7 @@ export default function FuelPage() {
   }, [authenticatedFetch]);
 
   const loadVehicles = useCallback(async () => {
-    const response = await authenticatedFetch(`${API}/vehicles/`, {
+    const response = await authenticatedFetch(`${API_URL}/vehicles/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -282,7 +286,7 @@ export default function FuelPage() {
   }, [authenticatedFetch]);
 
   const loadFuelPurchases = useCallback(async () => {
-    const response = await authenticatedFetch(`${API}/fuel/purchases/`, {
+    const response = await authenticatedFetch(`${API_URL}/fuel/purchases/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -293,7 +297,7 @@ export default function FuelPage() {
   }, [authenticatedFetch]);
 
   const loadFuelIssues = useCallback(async () => {
-    const response = await authenticatedFetch(`${API}/fuel/issues/`, {
+    const response = await authenticatedFetch(`${API_URL}/fuel/issues/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -439,7 +443,7 @@ export default function FuelPage() {
       formData.append("receipt_reference", purchaseForm.receipt_reference.trim());
       formData.append("receipt_file", purchaseForm.receipt_file);
 
-      const response = await authenticatedFetch(`${API}/fuel/purchases/create/`, {
+      const response = await authenticatedFetch(`${API_URL}/fuel/purchases/create/`, {
         method: "POST",
         headers: { Accept: "application/json" },
         body: formData,
@@ -518,7 +522,7 @@ export default function FuelPage() {
         remarks: issueForm.remarks.trim() || null,
       };
 
-      const response = await authenticatedFetch(`${API}/fuel/issues/create/`, {
+      const response = await authenticatedFetch(`${API_URL}/fuel/issues/create/`, {
         method: "POST",
         headers: {
           Accept: "application/json",

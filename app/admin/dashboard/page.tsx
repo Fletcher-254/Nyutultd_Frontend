@@ -54,9 +54,14 @@ interface DashboardStats {
   weekly_payroll_pending: number;
 }
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
+  
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -121,7 +126,7 @@ export default function AdminDashboardPage() {
     setLoggingOut(true);
 
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         headers: { Accept: "application/json" },
         credentials: "include",
@@ -142,7 +147,7 @@ export default function AdminDashboardPage() {
     setError("");
     try {
       // Load user
-      const meResponse = await authenticatedFetch(`${API}/me/`, {
+      const meResponse = await authenticatedFetch(`${API_URL}/me/`, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -198,35 +203,35 @@ if (role === "admin") {
         fuelDailyRes,
         weeklyPayrollRes,
       ] = await Promise.all([
-        authenticatedFetch(`${API}/employees/list/`, {
+        authenticatedFetch(`${API_URL}/employees/list/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/attendance/today/`, {
+        authenticatedFetch(`${API_URL}/attendance/today/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/vehicles/`, {
+        authenticatedFetch(`${API_URL}/vehicles/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/vendors/`, {
+        authenticatedFetch(`${API_URL}/vendors/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/expenses/daily/`, {
+        authenticatedFetch(`${API_URL}/expenses/daily/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/expenses/monthly/`, {
+        authenticatedFetch(`${API_URL}/expenses/monthly/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/fuel/daily-summary/`, {
+        authenticatedFetch(`${API_URL}/fuel/daily-summary/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
-        authenticatedFetch(`${API}/payroll/casual/summary/`, {
+        authenticatedFetch(`${API_URL}/payroll/casual/summary/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),

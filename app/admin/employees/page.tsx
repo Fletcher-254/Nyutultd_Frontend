@@ -26,11 +26,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// ==================================================
-// TYPES
-// ==================================================
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
 
 interface Employee {
   id: number;
@@ -129,8 +131,8 @@ export default function EmployeesPage() {
       { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
       { label: "Employees", icon: Users, path: "/admin/employees" },
       { label: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-      { label: "Vehicles", icon: Truck, path: "/vehicles" },
-      { label: "Fuel", icon: Fuel, path: "/fuel" },
+      { label: "Vehicles", icon: Truck, path: "admin/vehicles" },
+      { label: "Fuel", icon: Fuel, path: "admin/fuel" },
     ],
     []
   );
@@ -200,7 +202,7 @@ export default function EmployeesPage() {
   // ==================================================
 
   const fetchEmployees = useCallback(async () => {
-    const response = await authenticatedFetch(`${API}/employees/list/`, {
+    const response = await authenticatedFetch(`${API_URL}/employees/list/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -214,7 +216,7 @@ export default function EmployeesPage() {
     setLoading(true);
     setError("");
     try {
-      const meResponse = await authenticatedFetch(`${API}/me/`, {
+      const meResponse = await authenticatedFetch(`${API_URL}/me/`, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -345,8 +347,8 @@ export default function EmployeesPage() {
       }
 
       const url = selectedEmployee
-        ? `${API}/employees/${selectedEmployee.id}/update/`
-        : `${API}/employees/`;
+        ? `${API_URL}/employees/${selectedEmployee.id}/update/`
+        : `${API_URL}/employees/`;
       const method = selectedEmployee ? "PATCH" : "POST";
 
       const response = await authenticatedFetch(url, { method, body: formData });
@@ -386,7 +388,7 @@ export default function EmployeesPage() {
 
   async function handleToggleStatus(employee: Employee) {
     try {
-      const response = await authenticatedFetch(`${API}/employees/${employee.id}/update/`, {
+      const response = await authenticatedFetch(`${API_URL}/employees/${employee.id}/update/`, {
         method: "PATCH",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ is_active: !employee.is_active }),
@@ -411,7 +413,7 @@ export default function EmployeesPage() {
 
     try {
       const response = await authenticatedFetch(
-        `${API}/employees/${selectedEmployee.id}/delete/`,
+        `${API_URL}/employees/${selectedEmployee.id}/delete/`,
         { method: "DELETE" }
       );
       if (!response) return;
@@ -445,7 +447,7 @@ export default function EmployeesPage() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
         headers: { Accept: "application/json" },
@@ -457,10 +459,8 @@ export default function EmployeesPage() {
     }
   };
 
-  // ==================================================
   // FILTERING
-  // ==================================================
-
+  
   const filteredEmployees = useMemo(() => {
     const query = search.trim().toLowerCase();
     return employees.filter((employee) => {

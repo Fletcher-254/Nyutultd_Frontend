@@ -37,12 +37,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// ==================================================
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
+
 // SIDEBAR
-// ==================================================
 
 type ChildItem = {
   label: string;
@@ -325,7 +328,7 @@ export default function VendorsPage() {
   // ==================================================
 
   async function loadUser(token: string) {
-    const response = await fetch(`${API}/me/`, {
+    const response = await fetch(`${API_URL}/me/`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -354,7 +357,7 @@ export default function VendorsPage() {
   // ==================================================
 
   async function loadVendors(token: string) {
-    const response = await fetch(`${API}/vendors/`, {
+    const response = await fetch(`${API_URL}/vendors/`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -390,7 +393,7 @@ export default function VendorsPage() {
 
   async function loadTransactions(token: string) {
     const response = await fetch(
-      `${API}/vendors/transactions/`,
+      `${API_URL}/vendors/transactions/`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -546,8 +549,8 @@ export default function VendorsPage() {
       const isEditing = editingVendor !== null;
 
       const url = isEditing
-        ? `${API}/vendors/${editingVendor.id}/update/`
-        : `${API}/vendors/create/`;
+        ? `${API_URL}/vendors/${editingVendor.id}/update/`
+        : `${API_URL}/vendors/create/`;
 
       const response = await fetch(url, {
         method: isEditing ? "PATCH" : "POST",
@@ -656,7 +659,7 @@ export default function VendorsPage() {
 
     try {
       const response = await fetch(
-        `${API}/vendors/${vendor.id}/delete/`,
+        `${API_URL}/vendors/${vendor.id}/delete/`,
         {
           method: "DELETE",
           headers: {
@@ -906,8 +909,8 @@ export default function VendorsPage() {
         editingTransaction !== null;
 
       const url = isEditing
-        ? `${API}/vendors/transactions/${editingTransaction.id}/update/`
-        : `${API}/vendors/transactions/create/`;
+        ? `${API_URL}/vendors/transactions/${editingTransaction.id}/update/`
+        : `${API_URL}/vendors/transactions/create/`;
 
       const payload: Record<string, any> = {
         vendor: Number(transactionForm.vendor),
@@ -1050,7 +1053,7 @@ export default function VendorsPage() {
 
     try {
       const response = await fetch(
-        `${API}/vendors/transactions/${transaction.id}/delete/`,
+        `${API_URL}/vendors/transactions/${transaction.id}/delete/`,
         {
           method: "DELETE",
           headers: {

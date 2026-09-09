@@ -62,9 +62,13 @@ const EMPTY_FORM: VehicleFormData = {
   remarks: "",
 };
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured."
+  );
+}
 
 export default function VehiclesPage() {
   const router = useRouter();
@@ -166,7 +170,7 @@ export default function VehiclesPage() {
 
     try {
       // Load user
-      const meResponse = await authenticatedFetch(`${API}/me/`, {
+      const meResponse = await authenticatedFetch(`${API_URL}/me/`, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -196,7 +200,7 @@ export default function VehiclesPage() {
       );
 
       // Load vehicles
-      const vehiclesResponse = await authenticatedFetch(`${API}/vehicles/`, {
+      const vehiclesResponse = await authenticatedFetch(`${API_URL}/vehicles/`, {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -247,7 +251,7 @@ export default function VehiclesPage() {
     setLoggingOut(true);
 
     try {
-      await fetch(`${API}/logout/`, {
+      await fetch(`${API_URL}/logout/`, {
         method: "POST",
         headers: { Accept: "application/json" },
         credentials: "include",
@@ -331,8 +335,8 @@ export default function VehiclesPage() {
     try {
       const isEditing = editingVehicle !== null;
       const url = isEditing
-        ? `${API}/vehicles/${editingVehicle.id}/update/`
-        : `${API}/vehicles/create/`;
+        ? `${API_URL}/vehicles/${editingVehicle.id}/update/`
+        : `${API_URL}/vehicles/create/`;
 
       const payload = {
         asset_identifier: form.asset_identifier.trim(),
@@ -406,7 +410,7 @@ export default function VehiclesPage() {
     if (!confirmed) return;
 
     try {
-      const response = await authenticatedFetch(`${API}/vehicles/${vehicle.id}/delete/`, {
+      const response = await authenticatedFetch(`${API_URL}/vehicles/${vehicle.id}/delete/`, {
         method: "DELETE",
         headers: { Accept: "application/json" },
       });
