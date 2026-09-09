@@ -49,9 +49,6 @@ interface DashboardStats {
   total_fuel_purchased: number;
   total_fuel_issued: number;
   fuel_remaining: number;
-  weekly_payroll_due: number;
-  weekly_payroll_paid: number;
-  weekly_payroll_pending: number;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -201,7 +198,7 @@ if (role === "admin") {
         dailyExpensesRes,
         monthlyExpensesRes,
         fuelDailyRes,
-        weeklyPayrollRes,
+      
       ] = await Promise.all([
         authenticatedFetch(`${API_URL}/employees/list/`, {
           method: "GET",
@@ -228,10 +225,6 @@ if (role === "admin") {
           headers: { Accept: "application/json" },
         }),
         authenticatedFetch(`${API_URL}/fuel/daily-summary/`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        }),
-        authenticatedFetch(`${API_URL}/payroll/casual/summary/`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }),
@@ -290,16 +283,6 @@ if (role === "admin") {
         fuelRemaining = data.fuel_remaining_litres || 0;
       }
 
-      // Process weekly payroll summary - /api/payroll/casual/summary/
-      let weeklyDue = 0;
-      let weeklyPaid = 0;
-      let weeklyPending = 0;
-      if (weeklyPayrollRes && weeklyPayrollRes.ok) {
-        const data = await weeklyPayrollRes.json();
-        weeklyDue = data.total_amount_due || 0;
-        weeklyPaid = data.total_amount_paid || 0;
-        weeklyPending = data.total_amount_pending || 0;
-      }
 
       // Calculate stats from fetched data
       const totalEmployees = employeeList.length;
@@ -325,9 +308,6 @@ if (role === "admin") {
         total_fuel_purchased: fuelPurchased,
         total_fuel_issued: fuelIssued,
         fuel_remaining: fuelRemaining,
-        weekly_payroll_due: weeklyDue,
-        weekly_payroll_paid: weeklyPaid,
-        weekly_payroll_pending: weeklyPending,
       });
     } catch (err) {
       console.error("Dashboard loading error:", err);
