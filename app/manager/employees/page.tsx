@@ -563,9 +563,12 @@ export default function ManagerEmployeesPage() {
 
               <button
                 onClick={loadEmployees}
-                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+                disabled={loading}
+                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Loader2 className="h-4 w-4" />
+                <Loader2
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </button>
             </div>
