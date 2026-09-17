@@ -14,36 +14,27 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight,
   ShieldCheck,
   Loader2,
   AlertCircle,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   RefreshCw,
-  Plus,
   Eye,
-  Edit,
-  Trash2,
   Car,
   Gauge,
   User,
   Calendar,
   MapPin,
-  MoreVertical,
   CheckCircle,
-  XCircle,
   AlertTriangle,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -51,6 +42,8 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string;
+  last_name?: string;
   role: Role;
 }
 
@@ -112,7 +105,9 @@ const modules: Module[] = [
 
 function formatDate(dateString: string) {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
+
   return date.toLocaleDateString("en-KE", {
     year: "numeric",
     month: "short",
@@ -122,15 +117,24 @@ function formatDate(dateString: string) {
 
 function formatNumber(value: number | string | null) {
   if (value === null || value === undefined) return "N/A";
+
   return new Intl.NumberFormat("en-KE", {
     maximumFractionDigits: 0,
   }).format(Number(value));
 }
 
 function getStatusInfo(vehicle: Vehicle) {
-  const hasOpening = vehicle.opening_odometer_reading !== null && vehicle.opening_odometer_reading !== undefined;
-  const hasClosing = vehicle.closing_odometer_reading !== null && vehicle.closing_odometer_reading !== undefined;
-  const hasOperator = vehicle.assigned_operator !== null && vehicle.assigned_operator !== "";
+  const hasOpening =
+    vehicle.opening_odometer_reading !== null &&
+    vehicle.opening_odometer_reading !== undefined;
+
+  const hasClosing =
+    vehicle.closing_odometer_reading !== null &&
+    vehicle.closing_odometer_reading !== undefined;
+
+  const hasOperator =
+    vehicle.assigned_operator !== null &&
+    vehicle.assigned_operator !== "";
 
   if (!hasOpening && !hasClosing) {
     return {
@@ -157,7 +161,7 @@ function getStatusInfo(vehicle: Vehicle) {
   }
 
   return {
-    label: "Unknown",
+    label: hasOperator ? "Assigned" : "Unknown",
     color: "bg-yellow-50 text-yellow-700 border-yellow-200",
     icon: <AlertTriangle className="h-3.5 w-3.5" />,
   };
@@ -171,6 +175,7 @@ export default function VehiclesPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,7 +234,6 @@ export default function VehiclesPage() {
         authenticatedFetch("/vehicles/"),
       ]);
 
-      // Check role
       if (meData.role === "admin") {
         router.replace("/admin/dashboard");
         return;
@@ -263,55 +267,96 @@ export default function VehiclesPage() {
     loadData();
   }, [loadData]);
 
-  // Filter vehicles
   const filteredVehicles = vehicles.filter((vehicle) => {
     const searchLower = searchTerm.toLowerCase();
+
     return (
       vehicle.asset_identifier.toLowerCase().includes(searchLower) ||
-      (vehicle.assigned_operator?.toLowerCase().includes(searchLower) ?? false) ||
+      (vehicle.assigned_operator
+        ?.toLowerCase()
+        .includes(searchLower) ??
+        false) ||
       (vehicle.remarks?.toLowerCase().includes(searchLower) ?? false)
     );
   });
 
   const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedVehicles = filteredVehicles.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Stats
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const paginatedVehicles = filteredVehicles.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+
   const stats = {
     total: vehicles.length,
-    active: vehicles.filter((v) => 
-      v.opening_odometer_reading !== null && 
-      v.opening_odometer_reading !== undefined &&
-      (v.closing_odometer_reading === null || v.closing_odometer_reading === undefined)
+
+    active: vehicles.filter(
+      (v) =>
+        v.opening_odometer_reading !== null &&
+        v.opening_odometer_reading !== undefined &&
+        (v.closing_odometer_reading === null ||
+          v.closing_odometer_reading === undefined)
     ).length,
-    completed: vehicles.filter((v) => 
-      v.opening_odometer_reading !== null && 
-      v.opening_odometer_reading !== undefined &&
-      v.closing_odometer_reading !== null && 
-      v.closing_odometer_reading !== undefined
+
+    completed: vehicles.filter(
+      (v) =>
+        v.opening_odometer_reading !== null &&
+        v.opening_odometer_reading !== undefined &&
+        v.closing_odometer_reading !== null &&
+        v.closing_odometer_reading !== undefined
     ).length,
-    withOperator: vehicles.filter((v) => 
-      v.assigned_operator !== null && v.assigned_operator !== ""
+
+    withOperator: vehicles.filter(
+      (v) =>
+        v.assigned_operator !== null &&
+        v.assigned_operator !== ""
     ).length,
   };
 
   const greeting = (() => {
     const hour = new Date().getHours();
+
     if (hour < 12) return "Good morning";
     if (hour < 17) return "Good afternoon";
+
     return "Good evening";
   })();
 
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
+
+  const initials =
+    fullName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "M";
+
   const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+        },
       });
     } catch {
-      // Even if the logout request fails, leave the dashboard.
+      // Still redirect even if the logout request fails.
     } finally {
       router.replace("/");
     }
@@ -319,11 +364,15 @@ export default function VehiclesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-          <p className="mt-4 text-sm font-medium text-white">Loading vehicles...</p>
-          <p className="mt-1 text-xs text-slate-400">Fetching fleet data</p>
+          <p className="mt-4 text-sm font-medium text-white">
+            Loading vehicles...
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Fetching fleet data
+          </p>
         </div>
       </div>
     );
@@ -331,13 +380,20 @@ export default function VehiclesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
             <AlertCircle className="h-6 w-6 text-red-600" />
           </div>
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">Unable to load data</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
+          <h1 className="mt-5 text-lg font-semibold text-slate-900">
+            Unable to load data
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
           <button
             onClick={loadData}
             className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
@@ -354,21 +410,24 @@ export default function VehiclesPage() {
       {/* Vehicle Detail Modal */}
       {showDetailModal && selectedVehicle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-slate-100 p-2.5">
                   <Truck className="h-6 w-6 text-slate-700" />
                 </div>
+
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
                     {selectedVehicle.asset_identifier}
                   </h3>
+
                   <p className="text-sm text-slate-500">
                     Vehicle Details
                   </p>
                 </div>
               </div>
+
               <button
                 onClick={() => {
                   setShowDetailModal(false);
@@ -386,6 +445,7 @@ export default function VehiclesPage() {
                   <User className="h-4 w-4" />
                   <span>Assigned Operator</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {selectedVehicle.assigned_operator || "Not assigned"}
                 </p>
@@ -396,6 +456,7 @@ export default function VehiclesPage() {
                   <Calendar className="h-4 w-4" />
                   <span>Registered On</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {formatDate(selectedVehicle.created_at)}
                 </p>
@@ -406,10 +467,13 @@ export default function VehiclesPage() {
                   <Gauge className="h-4 w-4" />
                   <span>Opening Odometer</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVehicle.opening_odometer_reading !== null && 
-                   selectedVehicle.opening_odometer_reading !== undefined
-                    ? `${formatNumber(selectedVehicle.opening_odometer_reading)} km`
+                  {selectedVehicle.opening_odometer_reading !== null &&
+                  selectedVehicle.opening_odometer_reading !== undefined
+                    ? `${formatNumber(
+                        selectedVehicle.opening_odometer_reading
+                      )} km`
                     : "Not set"}
                 </p>
               </div>
@@ -419,10 +483,13 @@ export default function VehiclesPage() {
                   <Gauge className="h-4 w-4" />
                   <span>Closing Odometer</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVehicle.closing_odometer_reading !== null && 
-                   selectedVehicle.closing_odometer_reading !== undefined
-                    ? `${formatNumber(selectedVehicle.closing_odometer_reading)} km`
+                  {selectedVehicle.closing_odometer_reading !== null &&
+                  selectedVehicle.closing_odometer_reading !== undefined
+                    ? `${formatNumber(
+                        selectedVehicle.closing_odometer_reading
+                      )} km`
                     : "Not set"}
                 </p>
               </div>
@@ -433,6 +500,7 @@ export default function VehiclesPage() {
                     <MapPin className="h-4 w-4" />
                     <span>Remarks</span>
                   </div>
+
                   <p className="mt-2 text-sm font-medium text-slate-900">
                     {selectedVehicle.remarks}
                   </p>
@@ -463,9 +531,15 @@ export default function VehiclesPage() {
       >
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div>
-            <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
+            <p className="text-sm font-semibold tracking-wide">
+              NYUTU LIMITED
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Management Portal
+            </p>
           </div>
+
           <button
             onClick={() => setMobileOpen(false)}
             className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
@@ -481,8 +555,15 @@ export default function VehiclesPage() {
 
           <nav className="mt-3 space-y-1">
             <button
-              onClick={() => router.push("/manager/dashboard")}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+              onClick={() => {
+                setMobileOpen(false);
+                router.push("/manager/dashboard");
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                pathname === "/manager/dashboard"
+                  ? "bg-white/10 text-white"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
             >
               <LayoutDashboard className="h-5 w-5" />
               <span>Dashboard</span>
@@ -513,24 +594,40 @@ export default function VehiclesPage() {
           </nav>
         </div>
 
+        {/* Profile + Sign Out */}
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-xl bg-white/5 p-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
                 <ShieldCheck className="h-5 w-5 text-slate-300" />
               </div>
+
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Manager</p>
-                <p className="truncate text-xs text-slate-500">{me?.email}</p>
+                <p className="truncate text-sm font-medium text-white">
+                  {fullName}
+                </p>
+
+                <p className="truncate text-xs text-slate-500">
+                  Manager
+                </p>
               </div>
             </div>
           </div>
+
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+
+            <span>
+              {loggingOut ? "Signing out..." : "Sign Out"}
+            </span>
           </button>
         </div>
       </aside>
@@ -548,35 +645,51 @@ export default function VehiclesPage() {
             </button>
 
             <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">Vehicles</p>
-              <p className="text-xs text-slate-500">Manage company fleet</p>
+              <p className="text-sm font-medium text-slate-900">
+                Vehicles
+              </p>
+
+              <p className="text-xs text-slate-500">
+                Manage company fleet
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Manager</p>
+                <p className="text-sm font-medium text-slate-900">
+                  {fullName}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  Manager
+                </p>
               </div>
+
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+                {initials}
               </div>
             </div>
           </div>
         </header>
 
         <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
+          {/* Welcome Banner */}
           <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}</p>
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                   Fleet Management
                 </h1>
+
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
                   View and monitor all company vehicles and machinery.
                 </p>
               </div>
+
               <button
                 onClick={loadData}
                 className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
@@ -594,9 +707,15 @@ export default function VehiclesPage() {
                 <div className="rounded-xl bg-slate-100 p-2">
                   <Truck className="h-5 w-5 text-slate-700" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Total Vehicles</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.total}</p>
+                  <p className="text-xs text-slate-500">
+                    Total Vehicles
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.total}
+                  </p>
                 </div>
               </div>
             </div>
@@ -606,9 +725,15 @@ export default function VehiclesPage() {
                 <div className="rounded-xl bg-green-50 p-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Active</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.active}</p>
+                  <p className="text-xs text-slate-500">
+                    Active
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.active}
+                  </p>
                 </div>
               </div>
             </div>
@@ -618,9 +743,15 @@ export default function VehiclesPage() {
                 <div className="rounded-xl bg-blue-50 p-2">
                   <CheckCircle className="h-5 w-5 text-blue-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Completed Trips</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.completed}</p>
+                  <p className="text-xs text-slate-500">
+                    Completed Trips
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.completed}
+                  </p>
                 </div>
               </div>
             </div>
@@ -630,9 +761,15 @@ export default function VehiclesPage() {
                 <div className="rounded-xl bg-purple-50 p-2">
                   <User className="h-5 w-5 text-purple-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">With Operator</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.withOperator}</p>
+                  <p className="text-xs text-slate-500">
+                    With Operator
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.withOperator}
+                  </p>
                 </div>
               </div>
             </div>
@@ -642,6 +779,7 @@ export default function VehiclesPage() {
           <section className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
               <input
                 type="text"
                 placeholder="Search by asset ID, operator, or remarks..."
@@ -650,12 +788,13 @@ export default function VehiclesPage() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full rounded-lg border border-slate-200 pl-9 pr-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
             </div>
 
             <div className="text-sm text-slate-500">
-              {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? "s" : ""}
+              {filteredVehicles.length} vehicle
+              {filteredVehicles.length !== 1 ? "s" : ""}
             </div>
           </section>
 
@@ -665,23 +804,48 @@ export default function VehiclesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Asset</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Operator</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Opening</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Closing</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                      Asset
+                    </th>
+
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                      Operator
+                    </th>
+
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                      Opening
+                    </th>
+
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                      Closing
+                    </th>
+
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                      Status
+                    </th>
+
+                    <th className="px-4 py-3 text-center font-medium text-slate-600">
+                      Action
+                    </th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-slate-100">
                   {paginatedVehicles.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-12 text-center text-slate-500"
+                      >
                         <div className="flex flex-col items-center gap-2">
                           <Truck className="h-8 w-8 text-slate-300" />
+
                           <p>No vehicles found</p>
+
                           <p className="text-xs text-slate-400">
-                            {searchTerm ? "Try adjusting your search" : "No vehicles have been registered yet"}
+                            {searchTerm
+                              ? "Try adjusting your search"
+                              : "No vehicles have been registered yet"}
                           </p>
                         </div>
                       </td>
@@ -689,39 +853,55 @@ export default function VehiclesPage() {
                   ) : (
                     paginatedVehicles.map((vehicle) => {
                       const status = getStatusInfo(vehicle);
+
                       return (
-                        <tr key={vehicle.id} className="hover:bg-slate-50/50 transition">
+                        <tr
+                          key={vehicle.id}
+                          className="transition hover:bg-slate-50/50"
+                        >
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-3">
                               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
                                 <Car className="h-4 w-4 text-slate-600" />
                               </div>
+
                               <span className="font-medium text-slate-900">
                                 {vehicle.asset_identifier}
                               </span>
                             </div>
                           </td>
+
                           <td className="px-4 py-3.5 text-slate-600">
                             {vehicle.assigned_operator || "—"}
                           </td>
+
                           <td className="px-4 py-3.5 text-slate-600">
-                            {vehicle.opening_odometer_reading !== null && 
-                             vehicle.opening_odometer_reading !== undefined
-                              ? `${formatNumber(vehicle.opening_odometer_reading)} km`
+                            {vehicle.opening_odometer_reading !== null &&
+                            vehicle.opening_odometer_reading !== undefined
+                              ? `${formatNumber(
+                                  vehicle.opening_odometer_reading
+                                )} km`
                               : "—"}
                           </td>
+
                           <td className="px-4 py-3.5 text-slate-600">
-                            {vehicle.closing_odometer_reading !== null && 
-                             vehicle.closing_odometer_reading !== undefined
-                              ? `${formatNumber(vehicle.closing_odometer_reading)} km`
+                            {vehicle.closing_odometer_reading !== null &&
+                            vehicle.closing_odometer_reading !== undefined
+                              ? `${formatNumber(
+                                  vehicle.closing_odometer_reading
+                                )} km`
                               : "—"}
                           </td>
+
                           <td className="px-4 py-3.5">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.color}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.color}`}
+                            >
                               {status.icon}
                               {status.label}
                             </span>
                           </td>
+
                           <td className="px-4 py-3.5 text-center">
                             <button
                               onClick={() => {
@@ -746,18 +926,29 @@ export default function VehiclesPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
                 <div className="text-sm text-slate-500">
-                  Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredVehicles.length)} of{" "}
-                  {filteredVehicles.length}
+                  Showing {startIndex + 1}–
+                  {Math.min(
+                    startIndex + ITEMS_PER_PAGE,
+                    filteredVehicles.length
+                  )}{" "}
+                  of {filteredVehicles.length}
                 </div>
+
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.max(1, p - 1))
+                    }
                     disabled={currentPage === 1}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+
+                  {Array.from(
+                    { length: totalPages },
+                    (_, i) => i + 1
+                  ).map((page) => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
@@ -770,10 +961,15 @@ export default function VehiclesPage() {
                       {page}
                     </button>
                   ))}
+
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPage((p) =>
+                        Math.min(totalPages, p + 1)
+                      )
+                    }
                     disabled={currentPage === totalPages}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRightIcon className="h-4 w-4" />
                   </button>
@@ -786,7 +982,10 @@ export default function VehiclesPage() {
           <footer className="mt-9 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
               <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-              <p>Management Portal · Manager Access</p>
+
+              <p>
+                Management Portal · Manager Access
+              </p>
             </div>
           </footer>
         </main>

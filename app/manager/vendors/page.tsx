@@ -212,6 +212,7 @@ export default function VendorsPage() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -336,17 +337,20 @@ export default function VendorsPage() {
   }, [loadData]);
 
   const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
         headers: {
           Accept: "application/json",
-          "Content-Type": "application/json",
         },
       });
     } catch {
-      // Even if the server request fails, clear the client route.
+      // Still redirect even if the logout request fails.
     } finally {
       router.replace("/");
     }
@@ -634,10 +638,16 @@ export default function VendorsPage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            {loggingOut ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+
+            <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
           </button>
         </div>
       </aside>

@@ -14,42 +14,30 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight,
-  ShieldCheck,
+  Eye,
+  Calendar,
   Loader2,
   AlertCircle,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   RefreshCw,
-  Eye,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Receipt,
   FileText,
-  Clock,
+  ShieldCheck,
   CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Building2,
-  CreditCard,
-  Gauge,
   BarChart3,
   PieChart,
   Activity,
   Droplet,
   Wallet,
+  Gauge,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -57,6 +45,8 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string;
+  last_name?: string;
   role: Role;
 }
 
@@ -174,7 +164,9 @@ function formatNumber(value: number | string) {
 
 function formatDate(dateString: string) {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
+
   return date.toLocaleDateString("en-KE", {
     year: "numeric",
     month: "short",
@@ -184,7 +176,9 @@ function formatDate(dateString: string) {
 
 function formatDateFull(dateString: string) {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
+
   return date.toLocaleDateString("en-KE", {
     year: "numeric",
     month: "long",
@@ -202,21 +196,29 @@ export default function FuelPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  // Data states
   const [purchases, setPurchases] = useState<FuelPurchase[]>([]);
   const [issues, setIssues] = useState<FuelIssue[]>([]);
   const [dailySummary, setDailySummary] = useState<FuelSummary | null>(null);
-  const [monthlySummary, setMonthlySummary] = useState<FuelSummary | null>(null);
-  const [reconciliation, setReconciliation] = useState<FuelReconciliation | null>(null);
+  const [monthlySummary, setMonthlySummary] =
+    useState<FuelSummary | null>(null);
+  const [reconciliation, setReconciliation] =
+    useState<FuelReconciliation | null>(null);
   const [efficiency, setEfficiency] = useState<VehicleEfficiency[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedItem, setSelectedItem] = useState<FuelPurchase | FuelIssue | null>(null);
+
+  const [selectedItem, setSelectedItem] = useState<
+    FuelPurchase | FuelIssue | null
+  >(null);
+
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [detailType, setDetailType] = useState<"purchase" | "issue">("purchase");
+  const [detailType, setDetailType] =
+    useState<"purchase" | "issue">("purchase");
 
   const ITEMS_PER_PAGE = 10;
 
@@ -249,7 +251,7 @@ export default function FuelPage() {
             message = data.error;
           }
         } catch {
-          // Keep the default error message.
+          // Keep default error message.
         }
 
         throw new Error(message);
@@ -283,7 +285,6 @@ export default function FuelPage() {
         authenticatedFetch("/fuel/efficiency/fleet/"),
       ]);
 
-      // Check role
       if (meData.role === "admin") {
         router.replace("/admin/dashboard");
         return;
@@ -300,12 +301,16 @@ export default function FuelPage() {
       }
 
       setMe(meData);
-      setPurchases(Array.isArray(purchasesData) ? purchasesData : []);
+      setPurchases(
+        Array.isArray(purchasesData) ? purchasesData : []
+      );
       setIssues(Array.isArray(issuesData) ? issuesData : []);
       setDailySummary(dailyData || null);
       setMonthlySummary(monthlyData || null);
       setReconciliation(reconciliationData || null);
-      setEfficiency(Array.isArray(efficiencyData) ? efficiencyData : []);
+      setEfficiency(
+        Array.isArray(efficiencyData) ? efficiencyData : []
+      );
       setCurrentPage(1);
     } catch (err) {
       if (err instanceof Error && err.message) {
@@ -322,75 +327,144 @@ export default function FuelPage() {
     loadData();
   }, [loadData]);
 
-  // Filter purchases
   const filteredPurchases = purchases.filter((purchase) => {
     const searchLower = searchTerm.toLowerCase();
+
     return (
       purchase.supplier.toLowerCase().includes(searchLower) ||
-      (purchase.receipt_reference?.toLowerCase().includes(searchLower) ?? false)
+      (purchase.receipt_reference
+        ?.toLowerCase()
+        .includes(searchLower) ??
+        false)
     );
   });
 
-  // Filter issues
   const filteredIssues = issues.filter((issue) => {
     const searchLower = searchTerm.toLowerCase();
+
     return (
       issue.vehicle_name.toLowerCase().includes(searchLower) ||
       (issue.remarks?.toLowerCase().includes(searchLower) ?? false)
     );
   });
 
-  const totalPurchasesPages = Math.ceil(filteredPurchases.length / ITEMS_PER_PAGE);
-  const totalIssuesPages = Math.ceil(filteredIssues.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedPurchases = filteredPurchases.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  const paginatedIssues = filteredIssues.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPurchasesPages = Math.ceil(
+    filteredPurchases.length / ITEMS_PER_PAGE
+  );
 
-  // Stats
+  const totalIssuesPages = Math.ceil(
+    filteredIssues.length / ITEMS_PER_PAGE
+  );
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const paginatedPurchases = filteredPurchases.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+
+  const paginatedIssues = filteredIssues.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+
   const stats = {
     totalPurchases: purchases.length,
     totalIssues: issues.length,
-    totalLitresPurchased: purchases.reduce((sum, p) => sum + Number(p.litres || 0), 0),
-    totalLitresIssued: issues.reduce((sum, i) => sum + Number(i.litres || 0), 0),
-    totalCost: purchases.reduce((sum, p) => sum + Number(p.cost || 0), 0),
+    totalLitresPurchased: purchases.reduce(
+      (sum, purchase) => sum + Number(purchase.litres || 0),
+      0
+    ),
+    totalLitresIssued: issues.reduce(
+      (sum, issue) => sum + Number(issue.litres || 0),
+      0
+    ),
+    totalCost: purchases.reduce(
+      (sum, purchase) => sum + Number(purchase.cost || 0),
+      0
+    ),
   };
 
   const greeting = (() => {
     const hour = new Date().getHours();
+
     if (hour < 12) return "Good morning";
     if (hour < 17) return "Good afternoon";
+
     return "Good evening";
   })();
 
+  /*
+   * Connected logout.
+   *
+   * This is the same pattern as the Admin Dashboard:
+   * 1. Prevent duplicate clicks.
+   * 2. Set the loading state.
+   * 3. POST to /logout/.
+   * 4. Send the HttpOnly cookie with credentials: "include".
+   * 5. Redirect to the login page whether the request succeeds or fails.
+   */
   const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+        },
       });
     } catch {
-      // Even if the logout request fails, leave the dashboard.
+      // Still redirect even if the logout request fails.
     } finally {
       router.replace("/");
     }
   };
 
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
+
+  const initials =
+    fullName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "M";
+
   const getEfficiencyColor = (efficiency: number | string) => {
     const value = Number(efficiency);
+
     if (value === 0) return "text-slate-500";
     if (value >= 10) return "text-green-600";
     if (value >= 5) return "text-yellow-600";
+
     return "text-red-600";
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-          <p className="mt-4 text-sm font-medium text-white">Loading fuel data...</p>
-          <p className="mt-1 text-xs text-slate-400">Fetching fuel records</p>
+
+          <p className="mt-4 text-sm font-medium text-white">
+            Loading fuel data...
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Fetching fuel records
+          </p>
         </div>
       </div>
     );
@@ -398,13 +472,20 @@ export default function FuelPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
             <AlertCircle className="h-6 w-6 text-red-600" />
           </div>
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">Unable to load data</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
+          <h1 className="mt-5 text-lg font-semibold text-slate-900">
+            Unable to load data
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
           <button
             onClick={loadData}
             className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
@@ -421,7 +502,7 @@ export default function FuelPage() {
       {/* Detail Modal */}
       {showDetailModal && selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-slate-100 p-2.5">
@@ -431,17 +512,23 @@ export default function FuelPage() {
                     <Droplet className="h-6 w-6 text-slate-700" />
                   )}
                 </div>
+
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
-                    {detailType === "purchase" ? "Fuel Purchase" : "Fuel Issue"} Details
+                    {detailType === "purchase"
+                      ? "Fuel Purchase"
+                      : "Fuel Issue"}{" "}
+                    Details
                   </h3>
+
                   <p className="text-sm text-slate-500">
-                    {detailType === "purchase" 
+                    {detailType === "purchase"
                       ? (selectedItem as FuelPurchase).supplier
                       : (selectedItem as FuelIssue).vehicle_name}
                   </p>
                 </div>
               </div>
+
               <button
                 onClick={() => {
                   setShowDetailModal(false);
@@ -459,9 +546,10 @@ export default function FuelPage() {
                   <Calendar className="h-4 w-4" />
                   <span>Date</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {formatDateFull(
-                    detailType === "purchase" 
+                    detailType === "purchase"
                       ? (selectedItem as FuelPurchase).fuel_date
                       : (selectedItem as FuelIssue).fuel_date
                   )}
@@ -473,12 +561,14 @@ export default function FuelPage() {
                   <Fuel className="h-4 w-4" />
                   <span>Litres</span>
                 </div>
+
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {formatNumber(
-                    detailType === "purchase" 
+                    detailType === "purchase"
                       ? (selectedItem as FuelPurchase).litres
                       : (selectedItem as FuelIssue).litres
-                  )} L
+                  )}{" "}
+                  L
                 </p>
               </div>
 
@@ -489,19 +579,27 @@ export default function FuelPage() {
                       <Wallet className="h-4 w-4" />
                       <span>Cost</span>
                     </div>
+
                     <p className="mt-2 text-sm font-medium text-slate-900">
-                      {formatCurrency((selectedItem as FuelPurchase).cost)}
+                      {formatCurrency(
+                        (selectedItem as FuelPurchase).cost
+                      )}
                     </p>
                   </div>
 
-                  {(selectedItem as FuelPurchase).receipt_reference && (
+                  {(selectedItem as FuelPurchase)
+                    .receipt_reference && (
                     <div className="rounded-xl border border-slate-200 p-4">
                       <div className="flex items-center gap-2 text-sm text-slate-500">
                         <FileText className="h-4 w-4" />
                         <span>Receipt Reference</span>
                       </div>
+
                       <p className="mt-2 text-sm font-medium text-slate-900">
-                        {(selectedItem as FuelPurchase).receipt_reference}
+                        {
+                          (selectedItem as FuelPurchase)
+                            .receipt_reference
+                        }
                       </p>
                     </div>
                   )}
@@ -515,8 +613,13 @@ export default function FuelPage() {
                       <Gauge className="h-4 w-4" />
                       <span>Odometer Reading</span>
                     </div>
+
                     <p className="mt-2 text-sm font-medium text-slate-900">
-                      {formatNumber((selectedItem as FuelIssue).odometer_reading)} km
+                      {formatNumber(
+                        (selectedItem as FuelIssue)
+                          .odometer_reading
+                      )}{" "}
+                      km
                     </p>
                   </div>
 
@@ -526,6 +629,7 @@ export default function FuelPage() {
                         <FileText className="h-4 w-4" />
                         <span>Remarks</span>
                       </div>
+
                       <p className="mt-2 text-sm font-medium text-slate-900">
                         {(selectedItem as FuelIssue).remarks}
                       </p>
@@ -558,9 +662,15 @@ export default function FuelPage() {
       >
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div>
-            <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
+            <p className="text-sm font-semibold tracking-wide">
+              NYUTU LIMITED
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Management Portal
+            </p>
           </div>
+
           <button
             onClick={() => setMobileOpen(false)}
             className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
@@ -576,7 +686,10 @@ export default function FuelPage() {
 
           <nav className="mt-3 space-y-1">
             <button
-              onClick={() => router.push("/manager/dashboard")}
+              onClick={() => {
+                setMobileOpen(false);
+                router.push("/manager/dashboard");
+              }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
             >
               <LayoutDashboard className="h-5 w-5" />
@@ -608,24 +721,40 @@ export default function FuelPage() {
           </nav>
         </div>
 
+        {/* Profile + Connected Logout */}
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-xl bg-white/5 p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <ShieldCheck className="h-5 w-5 text-slate-300" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-semibold text-slate-200">
+                {initials}
               </div>
+
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Manager</p>
-                <p className="truncate text-xs text-slate-500">{me?.email}</p>
+                <p className="truncate text-sm font-medium text-white">
+                  {fullName}
+                </p>
+
+                <p className="truncate text-xs text-slate-500">
+                  {me?.email}
+                </p>
               </div>
             </div>
           </div>
+
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+
+            <span>
+              {loggingOut ? "Signing out..." : "Sign Out"}
+            </span>
           </button>
         </div>
       </aside>
@@ -643,35 +772,52 @@ export default function FuelPage() {
             </button>
 
             <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">Fuel Management</p>
-              <p className="text-xs text-slate-500">Monitor fuel usage and efficiency</p>
+              <p className="text-sm font-medium text-slate-900">
+                Fuel Management
+              </p>
+
+              <p className="text-xs text-slate-500">
+                Monitor fuel usage and efficiency
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Manager</p>
+                <p className="text-sm font-medium text-slate-900">
+                  {fullName}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  Manager
+                </p>
               </div>
+
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+                {initials}
               </div>
             </div>
           </div>
         </header>
 
         <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
+          {/* Welcome Banner */}
           <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}</p>
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
                   Fuel Management
                 </h1>
+
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  Monitor fuel purchases, issues, and vehicle efficiency across the fleet.
+                  Monitor fuel purchases, issues, and vehicle efficiency
+                  across the fleet.
                 </p>
               </div>
+
               <button
                 onClick={loadData}
                 className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
@@ -689,9 +835,15 @@ export default function FuelPage() {
                 <div className="rounded-xl bg-blue-50 p-2">
                   <Receipt className="h-5 w-5 text-blue-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Total Purchases</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.totalPurchases}</p>
+                  <p className="text-xs text-slate-500">
+                    Total Purchases
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.totalPurchases}
+                  </p>
                 </div>
               </div>
             </div>
@@ -701,9 +853,15 @@ export default function FuelPage() {
                 <div className="rounded-xl bg-orange-50 p-2">
                   <Droplet className="h-5 w-5 text-orange-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Total Issues</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.totalIssues}</p>
+                  <p className="text-xs text-slate-500">
+                    Total Issues
+                  </p>
+
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {stats.totalIssues}
+                  </p>
                 </div>
               </div>
             </div>
@@ -713,8 +871,12 @@ export default function FuelPage() {
                 <div className="rounded-xl bg-green-50 p-2">
                   <Fuel className="h-5 w-5 text-green-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Total Litres Purchased</p>
+                  <p className="text-xs text-slate-500">
+                    Total Litres Purchased
+                  </p>
+
                   <p className="text-2xl font-semibold text-slate-900">
                     {formatNumber(stats.totalLitresPurchased)} L
                   </p>
@@ -727,8 +889,12 @@ export default function FuelPage() {
                 <div className="rounded-xl bg-purple-50 p-2">
                   <Wallet className="h-5 w-5 text-purple-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Total Cost</p>
+                  <p className="text-xs text-slate-500">
+                    Total Cost
+                  </p>
+
                   <p className="text-2xl font-semibold text-slate-900">
                     {formatCurrency(stats.totalCost)}
                   </p>
@@ -741,29 +907,42 @@ export default function FuelPage() {
           <section className="mt-6 grid gap-4 md:grid-cols-2">
             {dailySummary && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
                   <Calendar className="h-4 w-4" />
                   <span>Today's Summary</span>
                 </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-slate-400">Purchased</p>
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatNumber(dailySummary.fuel_purchased_litres)} L
+                      {formatNumber(
+                        dailySummary.fuel_purchased_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Issued</p>
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatNumber(dailySummary.fuel_issued_litres)} L
+                      {formatNumber(
+                        dailySummary.fuel_issued_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Remaining</p>
                     <p className="text-lg font-semibold text-blue-600">
-                      {formatNumber(dailySummary.fuel_remaining_litres)} L
+                      {formatNumber(
+                        dailySummary.fuel_remaining_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Cost</p>
                     <p className="text-lg font-semibold text-slate-900">
@@ -776,29 +955,44 @@ export default function FuelPage() {
 
             {monthlySummary && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
                   <Calendar className="h-4 w-4" />
-                  <span>{monthlySummary.month} {monthlySummary.year} Summary</span>
+                  <span>
+                    {monthlySummary.month} {monthlySummary.year} Summary
+                  </span>
                 </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-slate-400">Purchased</p>
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatNumber(monthlySummary.fuel_purchased_litres)} L
+                      {formatNumber(
+                        monthlySummary.fuel_purchased_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Issued</p>
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatNumber(monthlySummary.fuel_issued_litres)} L
+                      {formatNumber(
+                        monthlySummary.fuel_issued_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Remaining</p>
                     <p className="text-lg font-semibold text-blue-600">
-                      {formatNumber(monthlySummary.fuel_remaining_litres)} L
+                      {formatNumber(
+                        monthlySummary.fuel_remaining_litres
+                      )}{" "}
+                      L
                     </p>
                   </div>
+
                   <div>
                     <p className="text-xs text-slate-400">Cost</p>
                     <p className="text-lg font-semibold text-slate-900">
@@ -813,37 +1007,68 @@ export default function FuelPage() {
           {/* Reconciliation */}
           {reconciliation && (
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+              <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
                 <BarChart3 className="h-4 w-4" />
                 <span>Reconciliation Summary</span>
               </div>
+
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div>
-                  <p className="text-xs text-slate-400">Total Purchased</p>
+                  <p className="text-xs text-slate-400">
+                    Total Purchased
+                  </p>
+
                   <p className="text-lg font-semibold text-slate-900">
-                    {formatNumber(reconciliation.total_fuel_purchased)} L
+                    {formatNumber(
+                      reconciliation.total_fuel_purchased
+                    )}{" "}
+                    L
                   </p>
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-400">Total Issued</p>
+                  <p className="text-xs text-slate-400">
+                    Total Issued
+                  </p>
+
                   <p className="text-lg font-semibold text-slate-900">
-                    {formatNumber(reconciliation.total_fuel_issued)} L
+                    {formatNumber(
+                      reconciliation.total_fuel_issued
+                    )}{" "}
+                    L
                   </p>
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-400">Expected Balance</p>
-                  <p className={`text-lg font-semibold ${
-                    Number(reconciliation.expected_fuel_balance) > 0 
-                      ? "text-blue-600" 
-                      : "text-red-600"
-                  }`}>
-                    {formatNumber(reconciliation.expected_fuel_balance)} L
+                  <p className="text-xs text-slate-400">
+                    Expected Balance
+                  </p>
+
+                  <p
+                    className={`text-lg font-semibold ${
+                      Number(
+                        reconciliation.expected_fuel_balance
+                      ) > 0
+                        ? "text-blue-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {formatNumber(
+                      reconciliation.expected_fuel_balance
+                    )}{" "}
+                    L
                   </p>
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-400">Total Cost</p>
+                  <p className="text-xs text-slate-400">
+                    Total Cost
+                  </p>
+
                   <p className="text-lg font-semibold text-slate-900">
-                    {formatCurrency(reconciliation.total_purchase_cost)}
+                    {formatCurrency(
+                      reconciliation.total_purchase_cost
+                    )}
                   </p>
                 </div>
               </div>
@@ -855,7 +1080,7 @@ export default function FuelPage() {
             <div className="flex gap-1 overflow-x-auto">
               <button
                 onClick={() => setActiveTab("overview")}
-                className={`px-4 py-2.5 text-sm font-medium transition border-b-2 ${
+                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                   activeTab === "overview"
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -866,9 +1091,10 @@ export default function FuelPage() {
                   Overview
                 </div>
               </button>
+
               <button
                 onClick={() => setActiveTab("purchases")}
-                className={`px-4 py-2.5 text-sm font-medium transition border-b-2 ${
+                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                   activeTab === "purchases"
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -879,9 +1105,10 @@ export default function FuelPage() {
                   Purchases
                 </div>
               </button>
+
               <button
                 onClick={() => setActiveTab("issues")}
-                className={`px-4 py-2.5 text-sm font-medium transition border-b-2 ${
+                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                   activeTab === "issues"
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -892,9 +1119,10 @@ export default function FuelPage() {
                   Issues
                 </div>
               </button>
+
               <button
                 onClick={() => setActiveTab("efficiency")}
-                className={`px-4 py-2.5 text-sm font-medium transition border-b-2 ${
+                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                   activeTab === "efficiency"
                     ? "border-slate-900 text-slate-900"
                     : "border-transparent text-slate-500 hover:text-slate-700"
@@ -910,40 +1138,60 @@ export default function FuelPage() {
 
           {/* Tab Content */}
           <section className="mt-6">
-            {/* Overview Tab */}
+            {/* Overview */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                {/* Recent Purchases */}
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-200">
-                    <h3 className="font-semibold text-slate-900">Recent Purchases</h3>
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-slate-200 px-5 py-4">
+                    <h3 className="font-semibold text-slate-900">
+                      Recent Purchases
+                    </h3>
                   </div>
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                          <th className="px-4 py-3 text-left font-medium text-slate-600">Supplier</th>
-                          <th className="px-4 py-3 text-right font-medium text-slate-600">Litres</th>
-                          <th className="px-4 py-3 text-right font-medium text-slate-600">Cost</th>
-                          <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                          <th className="px-4 py-3 text-left font-medium text-slate-600">
+                            Date
+                          </th>
+                          <th className="px-4 py-3 text-left font-medium text-slate-600">
+                            Supplier
+                          </th>
+                          <th className="px-4 py-3 text-right font-medium text-slate-600">
+                            Litres
+                          </th>
+                          <th className="px-4 py-3 text-right font-medium text-slate-600">
+                            Cost
+                          </th>
+                          <th className="px-4 py-3 text-center font-medium text-slate-600">
+                            Action
+                          </th>
                         </tr>
                       </thead>
+
                       <tbody className="divide-y divide-slate-100">
                         {purchases.slice(0, 5).map((purchase) => (
-                          <tr key={purchase.id} className="hover:bg-slate-50/50">
+                          <tr
+                            key={purchase.id}
+                            className="hover:bg-slate-50/50"
+                          >
                             <td className="px-4 py-3 text-slate-600">
                               {formatDate(purchase.fuel_date)}
                             </td>
+
                             <td className="px-4 py-3 font-medium text-slate-900">
                               {purchase.supplier}
                             </td>
+
                             <td className="px-4 py-3 text-right text-slate-600">
                               {formatNumber(purchase.litres)} L
                             </td>
+
                             <td className="px-4 py-3 text-right font-medium text-slate-900">
                               {formatCurrency(purchase.cost)}
                             </td>
+
                             <td className="px-4 py-3 text-center">
                               <button
                                 onClick={() => {
@@ -959,9 +1207,13 @@ export default function FuelPage() {
                             </td>
                           </tr>
                         ))}
+
                         {purchases.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                            <td
+                              colSpan={5}
+                              className="px-4 py-8 text-center text-slate-500"
+                            >
                               No purchases recorded
                             </td>
                           </tr>
@@ -971,37 +1223,60 @@ export default function FuelPage() {
                   </div>
                 </div>
 
-                {/* Recent Issues */}
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-200">
-                    <h3 className="font-semibold text-slate-900">Recent Issues</h3>
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-slate-200 px-5 py-4">
+                    <h3 className="font-semibold text-slate-900">
+                      Recent Issues
+                    </h3>
                   </div>
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                          <th className="px-4 py-3 text-left font-medium text-slate-600">Vehicle</th>
-                          <th className="px-4 py-3 text-right font-medium text-slate-600">Litres</th>
-                          <th className="px-4 py-3 text-right font-medium text-slate-600">Odometer</th>
-                          <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                          <th className="px-4 py-3 text-left font-medium text-slate-600">
+                            Date
+                          </th>
+                          <th className="px-4 py-3 text-left font-medium text-slate-600">
+                            Vehicle
+                          </th>
+                          <th className="px-4 py-3 text-right font-medium text-slate-600">
+                            Litres
+                          </th>
+                          <th className="px-4 py-3 text-right font-medium text-slate-600">
+                            Odometer
+                          </th>
+                          <th className="px-4 py-3 text-center font-medium text-slate-600">
+                            Action
+                          </th>
                         </tr>
                       </thead>
+
                       <tbody className="divide-y divide-slate-100">
                         {issues.slice(0, 5).map((issue) => (
-                          <tr key={issue.id} className="hover:bg-slate-50/50">
+                          <tr
+                            key={issue.id}
+                            className="hover:bg-slate-50/50"
+                          >
                             <td className="px-4 py-3 text-slate-600">
                               {formatDate(issue.fuel_date)}
                             </td>
+
                             <td className="px-4 py-3 font-medium text-slate-900">
                               {issue.vehicle_name}
                             </td>
+
                             <td className="px-4 py-3 text-right text-slate-600">
                               {formatNumber(issue.litres)} L
                             </td>
+
                             <td className="px-4 py-3 text-right text-slate-600">
-                              {formatNumber(issue.odometer_reading)} km
+                              {formatNumber(
+                                issue.odometer_reading
+                              )}{" "}
+                              km
                             </td>
+
                             <td className="px-4 py-3 text-center">
                               <button
                                 onClick={() => {
@@ -1017,9 +1292,13 @@ export default function FuelPage() {
                             </td>
                           </tr>
                         ))}
+
                         {issues.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                            <td
+                              colSpan={5}
+                              className="px-4 py-8 text-center text-slate-500"
+                            >
                               No fuel issues recorded
                             </td>
                           </tr>
@@ -1031,13 +1310,17 @@ export default function FuelPage() {
               </div>
             )}
 
-            {/* Purchases Tab */}
+            {/* Purchases */}
             {activeTab === "purchases" && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-semibold text-slate-900">All Fuel Purchases</h3>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="font-semibold text-slate-900">
+                    All Fuel Purchases
+                  </h3>
+
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                     <input
                       type="text"
                       placeholder="Search by supplier..."
@@ -1046,37 +1329,58 @@ export default function FuelPage() {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full sm:w-64 rounded-lg border border-slate-200 pl-9 pr-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-4 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 sm:w-64"
                     />
                   </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Supplier</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Litres</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Cost</th>
-                        <th className="px-4 py-3 text-center font-medium text-slate-600">Receipt</th>
-                        <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Date
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Supplier
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Litres
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Cost
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium text-slate-600">
+                          Receipt
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium text-slate-600">
+                          Action
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100">
                       {paginatedPurchases.map((purchase) => (
-                        <tr key={purchase.id} className="hover:bg-slate-50/50">
+                        <tr
+                          key={purchase.id}
+                          className="hover:bg-slate-50/50"
+                        >
                           <td className="px-4 py-3 text-slate-600">
                             {formatDate(purchase.fuel_date)}
                           </td>
+
                           <td className="px-4 py-3 font-medium text-slate-900">
                             {purchase.supplier}
                           </td>
+
                           <td className="px-4 py-3 text-right text-slate-600">
                             {formatNumber(purchase.litres)} L
                           </td>
+
                           <td className="px-4 py-3 text-right font-medium text-slate-900">
                             {formatCurrency(purchase.cost)}
                           </td>
+
                           <td className="px-4 py-3 text-center">
                             {purchase.receipt_reference ? (
                               <span className="inline-flex items-center gap-1 text-xs text-green-600">
@@ -1084,9 +1388,12 @@ export default function FuelPage() {
                                 {purchase.receipt_reference}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-slate-400">
+                                —
+                              </span>
                             )}
                           </td>
+
                           <td className="px-4 py-3 text-center">
                             <button
                               onClick={() => {
@@ -1102,9 +1409,13 @@ export default function FuelPage() {
                           </td>
                         </tr>
                       ))}
+
                       {paginatedPurchases.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                          <td
+                            colSpan={6}
+                            className="px-4 py-8 text-center text-slate-500"
+                          >
                             No purchases found
                           </td>
                         </tr>
@@ -1112,21 +1423,33 @@ export default function FuelPage() {
                     </tbody>
                   </table>
                 </div>
+
                 {totalPurchasesPages > 1 && (
                   <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
                     <div className="text-sm text-slate-500">
-                      Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredPurchases.length)} of{" "}
-                      {filteredPurchases.length}
+                      Showing {startIndex + 1}–
+                      {Math.min(
+                        startIndex + ITEMS_PER_PAGE,
+                        filteredPurchases.length
+                      )}{" "}
+                      of {filteredPurchases.length}
                     </div>
+
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() =>
+                          setCurrentPage((p) => Math.max(1, p - 1))
+                        }
                         disabled={currentPage === 1}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                      {Array.from({ length: totalPurchasesPages }, (_, i) => i + 1).map((page) => (
+
+                      {Array.from(
+                        { length: totalPurchasesPages },
+                        (_, i) => i + 1
+                      ).map((page) => (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
@@ -1139,9 +1462,16 @@ export default function FuelPage() {
                           {page}
                         </button>
                       ))}
+
                       <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPurchasesPages, p + 1))}
-                        disabled={currentPage === totalPurchasesPages}
+                        onClick={() =>
+                          setCurrentPage((p) =>
+                            Math.min(totalPurchasesPages, p + 1)
+                          )
+                        }
+                        disabled={
+                          currentPage === totalPurchasesPages
+                        }
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                       >
                         <ChevronRightIcon className="h-4 w-4" />
@@ -1152,13 +1482,17 @@ export default function FuelPage() {
               </div>
             )}
 
-            {/* Issues Tab */}
+            {/* Issues */}
             {activeTab === "issues" && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-semibold text-slate-900">All Fuel Issues</h3>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="font-semibold text-slate-900">
+                    All Fuel Issues
+                  </h3>
+
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                     <input
                       type="text"
                       placeholder="Search by vehicle..."
@@ -1167,36 +1501,58 @@ export default function FuelPage() {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full sm:w-64 rounded-lg border border-slate-200 pl-9 pr-4 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-4 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 sm:w-64"
                     />
                   </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Vehicle</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Litres</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Odometer</th>
-                        <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Date
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Vehicle
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Litres
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Odometer
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium text-slate-600">
+                          Action
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100">
                       {paginatedIssues.map((issue) => (
-                        <tr key={issue.id} className="hover:bg-slate-50/50">
+                        <tr
+                          key={issue.id}
+                          className="hover:bg-slate-50/50"
+                        >
                           <td className="px-4 py-3 text-slate-600">
                             {formatDate(issue.fuel_date)}
                           </td>
+
                           <td className="px-4 py-3 font-medium text-slate-900">
                             {issue.vehicle_name}
                           </td>
+
                           <td className="px-4 py-3 text-right text-slate-600">
                             {formatNumber(issue.litres)} L
                           </td>
+
                           <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(issue.odometer_reading)} km
+                            {formatNumber(
+                              issue.odometer_reading
+                            )}{" "}
+                            km
                           </td>
+
                           <td className="px-4 py-3 text-center">
                             <button
                               onClick={() => {
@@ -1212,9 +1568,13 @@ export default function FuelPage() {
                           </td>
                         </tr>
                       ))}
+
                       {paginatedIssues.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                          <td
+                            colSpan={5}
+                            className="px-4 py-8 text-center text-slate-500"
+                          >
                             No fuel issues found
                           </td>
                         </tr>
@@ -1222,21 +1582,33 @@ export default function FuelPage() {
                     </tbody>
                   </table>
                 </div>
+
                 {totalIssuesPages > 1 && (
                   <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
                     <div className="text-sm text-slate-500">
-                      Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredIssues.length)} of{" "}
-                      {filteredIssues.length}
+                      Showing {startIndex + 1}–
+                      {Math.min(
+                        startIndex + ITEMS_PER_PAGE,
+                        filteredIssues.length
+                      )}{" "}
+                      of {filteredIssues.length}
                     </div>
+
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() =>
+                          setCurrentPage((p) => Math.max(1, p - 1))
+                        }
                         disabled={currentPage === 1}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                      {Array.from({ length: totalIssuesPages }, (_, i) => i + 1).map((page) => (
+
+                      {Array.from(
+                        { length: totalIssuesPages },
+                        (_, i) => i + 1
+                      ).map((page) => (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
@@ -1249,9 +1621,16 @@ export default function FuelPage() {
                           {page}
                         </button>
                       ))}
+
                       <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalIssuesPages, p + 1))}
-                        disabled={currentPage === totalIssuesPages}
+                        onClick={() =>
+                          setCurrentPage((p) =>
+                            Math.min(totalIssuesPages, p + 1)
+                          )
+                        }
+                        disabled={
+                          currentPage === totalIssuesPages
+                        }
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                       >
                         <ChevronRightIcon className="h-4 w-4" />
@@ -1262,63 +1641,109 @@ export default function FuelPage() {
               </div>
             )}
 
-            {/* Efficiency Tab */}
+            {/* Efficiency */}
             {activeTab === "efficiency" && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-200">
-                  <h3 className="font-semibold text-slate-900">Vehicle Fuel Efficiency</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Ranked by fuel efficiency (km/L)</p>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-5 py-4">
+                  <h3 className="font-semibold text-slate-900">
+                    Vehicle Fuel Efficiency
+                  </h3>
+
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Ranked by fuel efficiency (km/L)
+                  </p>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Rank</th>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Vehicle</th>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">Operator</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Distance</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Fuel Used</th>
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">Efficiency</th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Rank
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Vehicle
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-slate-600">
+                          Operator
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Distance
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Fuel Used
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-slate-600">
+                          Efficiency
+                        </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100">
                       {efficiency.map((item, index) => (
-                        <tr key={item.vehicle} className="hover:bg-slate-50/50">
+                        <tr
+                          key={item.vehicle}
+                          className="hover:bg-slate-50/50"
+                        >
                           <td className="px-4 py-3">
-                            <div className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
-                              index === 0 
-                                ? "bg-yellow-100 text-yellow-700" 
-                                : index === 1 
-                                ? "bg-slate-100 text-slate-600" 
-                                : index === 2 
-                                ? "bg-orange-100 text-orange-700" 
-                                : "bg-slate-50 text-slate-500"
-                            }`}>
+                            <div
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                                index === 0
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : index === 1
+                                  ? "bg-slate-100 text-slate-600"
+                                  : index === 2
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-slate-50 text-slate-500"
+                              }`}
+                            >
                               {index + 1}
                             </div>
                           </td>
+
                           <td className="px-4 py-3 font-medium text-slate-900">
                             {item.vehicle}
                           </td>
+
                           <td className="px-4 py-3 text-slate-600">
                             {item.operator || "—"}
                           </td>
+
                           <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(item.distance_travelled)} km
+                            {formatNumber(
+                              item.distance_travelled
+                            )}{" "}
+                            km
                           </td>
+
                           <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(item.fuel_used_litres)} L
+                            {formatNumber(
+                              item.fuel_used_litres
+                            )}{" "}
+                            L
                           </td>
+
                           <td className="px-4 py-3 text-right">
-                            <span className={`font-semibold ${getEfficiencyColor(item.fuel_efficiency)}`}>
-                              {formatNumber(item.fuel_efficiency)} km/L
+                            <span
+                              className={`font-semibold ${getEfficiencyColor(
+                                item.fuel_efficiency
+                              )}`}
+                            >
+                              {formatNumber(
+                                item.fuel_efficiency
+                              )}{" "}
+                              km/L
                             </span>
                           </td>
                         </tr>
                       ))}
+
                       {efficiency.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                          <td
+                            colSpan={6}
+                            className="px-4 py-8 text-center text-slate-500"
+                          >
                             No efficiency data available
                           </td>
                         </tr>
@@ -1333,7 +1758,10 @@ export default function FuelPage() {
           {/* Footer */}
           <footer className="mt-9 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
+              <p>
+                © {new Date().getFullYear()} NYUTU LIMITED
+              </p>
+
               <p>Management Portal · Manager Access</p>
             </div>
           </footer>
