@@ -27,9 +27,7 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -37,6 +35,8 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
   role: Role;
 }
 
@@ -198,6 +198,7 @@ export default function ManagerDashboardPage() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const [me, setMe] = useState<Me | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -210,11 +211,25 @@ export default function ManagerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const navigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const authenticatedFetch = useCallback(
     async (endpoint: string) => {
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "GET",
         credentials: "include",
+        cache: "no-store",
         headers: {
           Accept: "application/json",
         },
@@ -369,7 +384,22 @@ export default function ManagerDashboardPage() {
     return "Good evening";
   }, []);
 
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
+
   const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
@@ -387,15 +417,17 @@ export default function ManagerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
+          </div>
 
-          <p className="mt-4 text-sm font-medium text-white">
+          <h2 className="text-lg font-semibold text-slate-900">
             Loading your dashboard...
-          </p>
+          </h2>
 
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Verifying secure access
           </p>
         </div>
@@ -405,15 +437,15 @@ export default function ManagerDashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
 
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-slate-900">
             Unable to load dashboard
-          </h1>
+          </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
             {error}
@@ -421,9 +453,9 @@ export default function ManagerDashboardPage() {
 
           <button
             onClick={loadDashboard}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Try again
+            Try Again
           </button>
         </div>
       </div>
@@ -431,10 +463,11 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Mobile overlay */}
       {mobileOpen && (
         <button
+          type="button"
           aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
           className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
@@ -443,182 +476,373 @@ export default function ManagerDashboardPage() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-wide">
-              NYUTU LIMITED
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Management Portal
-            </p>
-          </div>
+        {/* Brand */}
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
+          <button
+            type="button"
+            onClick={() => navigate("/manager/dashboard")}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">
+                N
+              </span>
+            </div>
+
+            <div className="text-left">
+              <p className="text-sm font-bold tracking-wide text-white">
+                NYUTU LTD
+              </p>
+
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+                ERP MANAGEMENT
+              </p>
+            </div>
+          </button>
 
           <button
+            type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
-          </p>
+        {/* Navigation */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
 
-          <nav className="mt-3 space-y-1">
+          <nav className="space-y-1.5">
             <button
-              onClick={() => router.push("/manager/dashboard")}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                pathname === "/manager/dashboard"
-                  ? "bg-white/10 text-white"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+              type="button"
+              onClick={() => navigate("/manager/dashboard")}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                isActive("/manager/dashboard")
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <LayoutDashboard
+                className={`h-5 w-5 ${
+                  isActive("/manager/dashboard")
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-slate-300"
+                }`}
+              />
+
+              <span className="flex-1">Dashboard</span>
+
+              {isActive("/manager/dashboard") && (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
+              const active = isActive(module.href);
 
               return (
                 <button
                   key={module.name}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+                  type="button"
+                  onClick={() => navigate(module.href)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{module.name}</span>
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
+
+                  <span className="flex-1">
+                    {module.name}
+                  </span>
+
+                  {active && (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 rounded-xl bg-white/5 p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <ShieldCheck className="h-5 w-5 text-slate-300" />
-              </div>
+        {/* Account / Sign Out */}
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              {firstName.charAt(0).toUpperCase()}
+            </div>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  Manager
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {me?.email}
-                </p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {fullName}
+              </p>
+
+              <p className="truncate text-xs text-slate-400">
+                {me?.email || "Manager"}
+              </p>
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            {loggingOut ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
+            )}
           </button>
         </div>
       </aside>
 
       {/* Main */}
-      <div className="lg:pl-72">
+      <main className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">
-                Manager Dashboard
-              </p>
-              <p className="text-xs text-slate-500">
-                Operational overview
-              </p>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  {greeting}
+                </p>
+
+                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  {firstName}
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">
-                  {me?.email}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Manager
-                </p>
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                <span className="text-xs font-semibold text-emerald-700">
+                  System Online
+                </span>
               </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="max-w-3xl">
-              <p className="text-sm font-medium text-slate-400">
-                {greeting}
-              </p>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Welcome section */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-blue-300" />
 
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Welcome to your dashboard
-              </h1>
+                  <span className="text-xs font-semibold text-blue-200">
+                    Manager Dashboard
+                  </span>
+                </div>
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Monitor daily operations, attendance, vehicles,
-                fuel, wages, vendors and expenses from one place.
-              </p>
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+                  Welcome to your dashboard
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  Monitor daily operations, attendance, vehicles,
+                  fuel, wages, vendors and expenses from one place.
+                </p>
+              </div>
+
+              <div className="hidden lg:flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+                <LayoutDashboard className="h-8 w-8 text-blue-300" />
+              </div>
+            </div>
+          </section>
+
+          {/* Overview */}
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Employees
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.totalEmployees}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {stats.casualEmployees} casual ·{" "}
+                    {stats.permanentEmployees} permanent
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Attendance
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.presentToday}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {stats.absentToday} absent ·{" "}
+                    {stats.unmarkedToday} unmarked
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <CalendarCheck className="h-5 w-5 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Vehicles
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.totalVehicles}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Registered vehicles
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50">
+                  <Truck className="h-5 w-5 text-violet-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Vendors
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {stats.totalVendors}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {stats.activeVendors} active ·{" "}
+                    {stats.inactiveVendors} inactive
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
+                  <Store className="h-5 w-5 text-orange-600" />
+                </div>
+              </div>
             </div>
           </section>
 
           {/* Available Modules */}
-          <section className="mt-9">
+          <section>
             <div className="mb-5">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Available Modules
-              </h2>
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                    Operations
+                  </p>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Operational information available to you as manager.
-              </p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                    Available Modules
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Operational information available to you as manager.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {/* Employees */}
               <button
-                onClick={() => router.push("/manager/employees")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/employees")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/employees")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Users className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                    <Users className="h-5 w-5 text-blue-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Employees
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {stats.totalEmployees}
                 </p>
 
@@ -630,22 +854,27 @@ export default function ManagerDashboardPage() {
 
               {/* Attendance */}
               <button
-                onClick={() => router.push("/manager/attendance")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/attendance")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/attendance")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <CalendarCheck className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                    <CalendarCheck className="h-5 w-5 text-emerald-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Attendance
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {stats.presentToday} / {stats.totalEmployees}
                 </p>
 
@@ -658,22 +887,27 @@ export default function ManagerDashboardPage() {
 
               {/* Daily Wages */}
               <button
-                onClick={() => router.push("/manager/daily-wages")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/daily-wages")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/daily-wages")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <CircleDollarSign className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
+                    <CircleDollarSign className="h-5 w-5 text-amber-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-amber-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Daily Wages
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {formatCurrency(
                     payroll?.total_amount_due || 0
                   )}
@@ -689,22 +923,27 @@ export default function ManagerDashboardPage() {
 
               {/* Vehicles */}
               <button
-                onClick={() => router.push("/manager/vehicles")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/vehicles")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/vehicles")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Truck className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50">
+                    <Truck className="h-5 w-5 text-violet-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Vehicles
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {stats.totalVehicles}
                 </p>
 
@@ -715,22 +954,27 @@ export default function ManagerDashboardPage() {
 
               {/* Fuel */}
               <button
-                onClick={() => router.push("/manager/fuel")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/fuel")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/fuel")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Fuel className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
+                    <Fuel className="h-5 w-5 text-orange-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-orange-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Fuel
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {formatNumber(
                     fuel?.fuel_purchased_litres || 0
                   )}{" "}
@@ -747,22 +991,27 @@ export default function ManagerDashboardPage() {
 
               {/* Vendors */}
               <button
-                onClick={() => router.push("/manager/vendors")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/vendors")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/vendors")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Store className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50">
+                    <Store className="h-5 w-5 text-sky-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-sky-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Vendors
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   {stats.totalVendors}
                 </p>
 
@@ -774,22 +1023,27 @@ export default function ManagerDashboardPage() {
 
               {/* Expenses */}
               <button
-                onClick={() => router.push("/manager/expenses")}
-                className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                type="button"
+                onClick={() => navigate("/manager/expenses")}
+                className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive("/manager/expenses")
+                    ? "border-blue-300 ring-2 ring-blue-500/10"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Receipt className="h-5 w-5 text-slate-700" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50">
+                    <Receipt className="h-5 w-5 text-rose-600" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-rose-600" />
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-bold text-slate-900">
                   Expenses
                 </p>
 
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
                   Track expenses
                 </p>
 
@@ -801,16 +1055,20 @@ export default function ManagerDashboardPage() {
           </section>
 
           {/* Manager profile */}
-          <section className="mt-9 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-                  <ShieldCheck className="h-6 w-6 text-slate-700" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+                  <ShieldCheck className="h-6 w-6 text-blue-600" />
                 </div>
 
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Manager Profile
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                    Account
+                  </p>
+
+                  <h2 className="mt-1 text-base font-bold text-slate-900">
+                    {fullName}
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
@@ -820,17 +1078,17 @@ export default function ManagerDashboardPage() {
               </div>
 
               <div className="flex flex-wrap gap-3 text-xs">
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-medium text-emerald-700">
                   <UserCheck className="h-4 w-4" />
                   {stats.presentToday} present today
                 </div>
 
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-medium text-red-700">
                   <UserX className="h-4 w-4" />
                   {stats.absentToday} absent today
                 </div>
 
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 font-medium text-amber-700">
                   <Clock3 className="h-4 w-4" />
                   {stats.unmarkedToday} unmarked
                 </div>
@@ -839,19 +1097,17 @@ export default function ManagerDashboardPage() {
           </section>
 
           {/* Footer */}
-          <footer className="mt-9 border-t border-slate-200 pt-6">
-            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                © {new Date().getFullYear()} NYUTU LIMITED
-              </p>
+          <footer className="py-6 text-center">
+            <p className="text-xs text-slate-400">
+              Nyutu Ltd Enterprise Management System
+            </p>
 
-              <p>
-                Management Portal · Manager Access
-              </p>
-            </div>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Secure operations management
+            </p>
           </footer>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
