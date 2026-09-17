@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -213,7 +214,7 @@ export default function VehiclesPage() {
             message = data.error;
           }
         } catch {
-          // Keep the default error message.
+          // Keep default error message.
         }
 
         throw new Error(message);
@@ -356,7 +357,7 @@ export default function VehiclesPage() {
         },
       });
     } catch {
-      // Still redirect even if the logout request fails.
+      // Still redirect even if logout request fails.
     } finally {
       router.replace("/");
     }
@@ -367,9 +368,11 @@ export default function VehiclesPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
+
           <p className="mt-4 text-sm font-medium text-white">
             Loading vehicles...
           </p>
+
           <p className="mt-1 text-xs text-slate-400">
             Fetching fleet data
           </p>
@@ -410,8 +413,8 @@ export default function VehiclesPage() {
       {/* Vehicle Detail Modal */}
       {showDetailModal && selectedVehicle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-slate-100 p-2.5">
                   <Truck className="h-6 w-6 text-slate-700" />
@@ -433,94 +436,104 @@ export default function VehiclesPage() {
                   setShowDetailModal(false);
                   setSelectedVehicle(null);
                 }}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <User className="h-4 w-4" />
-                  <span>Assigned Operator</span>
-                </div>
-
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVehicle.assigned_operator || "Not assigned"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Calendar className="h-4 w-4" />
-                  <span>Registered On</span>
-                </div>
-
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {formatDate(selectedVehicle.created_at)}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Gauge className="h-4 w-4" />
-                  <span>Opening Odometer</span>
-                </div>
-
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVehicle.opening_odometer_reading !== null &&
-                  selectedVehicle.opening_odometer_reading !== undefined
-                    ? `${formatNumber(
-                        selectedVehicle.opening_odometer_reading
-                      )} km`
-                    : "Not set"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Gauge className="h-4 w-4" />
-                  <span>Closing Odometer</span>
-                </div>
-
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {selectedVehicle.closing_odometer_reading !== null &&
-                  selectedVehicle.closing_odometer_reading !== undefined
-                    ? `${formatNumber(
-                        selectedVehicle.closing_odometer_reading
-                      )} km`
-                    : "Not set"}
-                </p>
-              </div>
-
-              {selectedVehicle.remarks && (
-                <div className="col-span-2 rounded-xl border border-slate-200 p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <MapPin className="h-4 w-4" />
-                    <span>Remarks</span>
+            <div className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <User className="h-4 w-4" />
+                    Assigned Operator
                   </div>
 
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {selectedVehicle.remarks}
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {selectedVehicle.assigned_operator || "Not assigned"}
                   </p>
                 </div>
-              )}
-            </div>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  setSelectedVehicle(null);
-                }}
-                className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                Close
-              </button>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <Calendar className="h-4 w-4" />
+                    Registered On
+                  </div>
+
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {formatDate(selectedVehicle.created_at)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <Gauge className="h-4 w-4" />
+                    Opening Odometer
+                  </div>
+
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {selectedVehicle.opening_odometer_reading !== null &&
+                    selectedVehicle.opening_odometer_reading !== undefined
+                      ? `${formatNumber(
+                          selectedVehicle.opening_odometer_reading
+                        )} km`
+                      : "Not set"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <Gauge className="h-4 w-4" />
+                    Closing Odometer
+                  </div>
+
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {selectedVehicle.closing_odometer_reading !== null &&
+                    selectedVehicle.closing_odometer_reading !== undefined
+                      ? `${formatNumber(
+                          selectedVehicle.closing_odometer_reading
+                        )} km`
+                      : "Not set"}
+                  </p>
+                </div>
+
+                {selectedVehicle.remarks && (
+                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                      <MapPin className="h-4 w-4" />
+                      Remarks
+                    </div>
+
+                    <p className="mt-2 text-sm font-medium leading-6 text-slate-900">
+                      {selectedVehicle.remarks}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    setSelectedVehicle(null);
+                  }}
+                  className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
       )}
 
       {/* Sidebar */}
@@ -542,13 +555,13 @@ export default function VehiclesPage() {
 
           <button
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-6">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
             Navigation
           </p>
@@ -594,7 +607,7 @@ export default function VehiclesPage() {
           </nav>
         </div>
 
-        {/* Profile + Sign Out */}
+        {/* Profile */}
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-xl bg-white/5 p-3">
             <div className="flex items-center gap-3">
@@ -637,21 +650,23 @@ export default function VehiclesPage() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
           <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">
-                Vehicles
-              </p>
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Vehicles
+                </p>
 
-              <p className="text-xs text-slate-500">
-                Manage company fleet
-              </p>
+                <p className="text-xs text-slate-500">
+                  Fleet management and monitoring
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -673,26 +688,35 @@ export default function VehiclesPage() {
         </header>
 
         <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome Banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Page Introduction */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">
-                  {greeting}, {firstName}
-                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                    <Truck className="h-5 w-5 text-slate-700" />
+                  </div>
 
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Fleet Management
-                </h1>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">
+                      Fleet Management
+                    </p>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  View and monitor all company vehicles and machinery.
+                    <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-slate-900">
+                      Company Vehicles
+                    </h1>
+                  </div>
+                </div>
+
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-500">
+                  View and monitor all company vehicles and machinery,
+                  including operators and odometer readings.
                 </p>
               </div>
 
               <button
                 onClick={loadData}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
@@ -704,16 +728,16 @@ export default function VehiclesPage() {
           <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
+                <div className="rounded-xl bg-slate-100 p-2.5">
                   <Truck className="h-5 w-5 text-slate-700" />
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     Total Vehicles
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">
                     {stats.total}
                   </p>
                 </div>
@@ -722,16 +746,16 @@ export default function VehiclesPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-50 p-2">
+                <div className="rounded-xl bg-green-50 p-2.5">
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     Active
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">
                     {stats.active}
                   </p>
                 </div>
@@ -740,16 +764,16 @@ export default function VehiclesPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-blue-50 p-2">
+                <div className="rounded-xl bg-blue-50 p-2.5">
                   <CheckCircle className="h-5 w-5 text-blue-600" />
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     Completed Trips
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">
                     {stats.completed}
                   </p>
                 </div>
@@ -758,16 +782,16 @@ export default function VehiclesPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-purple-50 p-2">
+                <div className="rounded-xl bg-purple-50 p-2.5">
                   <User className="h-5 w-5 text-purple-600" />
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     With Operator
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">
                     {stats.withOperator}
                   </p>
                 </div>
@@ -775,56 +799,70 @@ export default function VehiclesPage() {
             </div>
           </section>
 
-          {/* Filters */}
-          <section className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          {/* Search */}
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-              <input
-                type="text"
-                placeholder="Search by asset ID, operator, or remarks..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-              />
-            </div>
+                <input
+                  type="text"
+                  placeholder="Search by asset ID, operator, or remarks..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
 
-            <div className="text-sm text-slate-500">
-              {filteredVehicles.length} vehicle
-              {filteredVehicles.length !== 1 ? "s" : ""}
+              <div className="text-sm text-slate-500">
+                {filteredVehicles.length} vehicle
+                {filteredVehicles.length !== 1 ? "s" : ""}
+              </div>
             </div>
           </section>
 
-          {/* Table */}
+          {/* Vehicles Table */}
           <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Vehicle Records
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Company fleet and trip information
+                </p>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Asset
                     </th>
 
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Operator
                     </th>
 
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Opening
                     </th>
 
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Closing
                     </th>
 
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Status
                     </th>
 
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">
+                    <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Action
                     </th>
                   </tr>
@@ -835,12 +873,16 @@ export default function VehiclesPage() {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-12 text-center text-slate-500"
+                        className="px-5 py-14 text-center"
                       >
                         <div className="flex flex-col items-center gap-2">
-                          <Truck className="h-8 w-8 text-slate-300" />
+                          <div className="rounded-full bg-slate-100 p-3">
+                            <Truck className="h-6 w-6 text-slate-400" />
+                          </div>
 
-                          <p>No vehicles found</p>
+                          <p className="mt-2 text-sm font-medium text-slate-700">
+                            No vehicles found
+                          </p>
 
                           <p className="text-xs text-slate-400">
                             {searchTerm
@@ -857,25 +899,31 @@ export default function VehiclesPage() {
                       return (
                         <tr
                           key={vehicle.id}
-                          className="transition hover:bg-slate-50/50"
+                          className="transition hover:bg-slate-50/70"
                         >
-                          <td className="px-4 py-3.5">
+                          <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
                                 <Car className="h-4 w-4 text-slate-600" />
                               </div>
 
-                              <span className="font-medium text-slate-900">
-                                {vehicle.asset_identifier}
-                              </span>
+                              <div>
+                                <p className="font-medium text-slate-900">
+                                  {vehicle.asset_identifier}
+                                </p>
+
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                  Vehicle
+                                </p>
+                              </div>
                             </div>
                           </td>
 
-                          <td className="px-4 py-3.5 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             {vehicle.assigned_operator || "—"}
                           </td>
 
-                          <td className="px-4 py-3.5 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             {vehicle.opening_odometer_reading !== null &&
                             vehicle.opening_odometer_reading !== undefined
                               ? `${formatNumber(
@@ -884,7 +932,7 @@ export default function VehiclesPage() {
                               : "—"}
                           </td>
 
-                          <td className="px-4 py-3.5 text-slate-600">
+                          <td className="px-5 py-4 text-slate-600">
                             {vehicle.closing_odometer_reading !== null &&
                             vehicle.closing_odometer_reading !== undefined
                               ? `${formatNumber(
@@ -893,7 +941,7 @@ export default function VehiclesPage() {
                               : "—"}
                           </td>
 
-                          <td className="px-4 py-3.5">
+                          <td className="px-5 py-4">
                             <span
                               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.color}`}
                             >
@@ -902,13 +950,13 @@ export default function VehiclesPage() {
                             </span>
                           </td>
 
-                          <td className="px-4 py-3.5 text-center">
+                          <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => {
                                 setSelectedVehicle(vehicle);
                                 setShowDetailModal(true);
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
                             >
                               <Eye className="h-3.5 w-3.5" />
                               View
@@ -924,14 +972,24 @@ export default function VehiclesPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
-                <div className="text-sm text-slate-500">
-                  Showing {startIndex + 1}–
-                  {Math.min(
-                    startIndex + ITEMS_PER_PAGE,
-                    filteredVehicles.length
-                  )}{" "}
-                  of {filteredVehicles.length}
+              <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs text-slate-500">
+                  Showing{" "}
+                  <span className="font-medium text-slate-700">
+                    {startIndex + 1}
+                  </span>
+                  –
+                  <span className="font-medium text-slate-700">
+                    {" "}
+                    {Math.min(
+                      startIndex + ITEMS_PER_PAGE,
+                      filteredVehicles.length
+                    )}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium text-slate-700">
+                    {filteredVehicles.length}
+                  </span>
                 </div>
 
                 <div className="flex gap-1.5">
@@ -940,7 +998,7 @@ export default function VehiclesPage() {
                       setCurrentPage((p) => Math.max(1, p - 1))
                     }
                     disabled={currentPage === 1}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -952,10 +1010,10 @@ export default function VehiclesPage() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                      className={`min-w-9 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                         page === currentPage
                           ? "bg-slate-900 text-white"
-                          : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                     >
                       {page}
@@ -969,7 +1027,7 @@ export default function VehiclesPage() {
                       )
                     }
                     disabled={currentPage === totalPages}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ChevronRightIcon className="h-4 w-4" />
                   </button>
@@ -993,3 +1051,4 @@ export default function VehiclesPage() {
     </div>
   );
 }
+
