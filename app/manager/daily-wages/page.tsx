@@ -14,7 +14,6 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight,
   ShieldCheck,
   Loader2,
   AlertCircle,
@@ -26,12 +25,7 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
   RefreshCw,
-  User,
   Calendar,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Eye,
   DollarSign,
   CreditCard,
 } from "lucide-react";
@@ -39,9 +33,7 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -49,7 +41,12 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string;
+  last_name?: string;
   role: Role;
+  is_active?: boolean;
+  is_verified?: boolean;
+  created_at?: string;
 }
 
 interface CasualPayroll {
@@ -142,7 +139,9 @@ function formatCurrency(value: number | string) {
 
 function formatDate(dateString: string) {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
+
   return date.toLocaleDateString("en-KE", {
     year: "numeric",
     month: "short",
@@ -152,7 +151,9 @@ function formatDate(dateString: string) {
 
 function formatDateFull(dateString: string) {
   if (!dateString) return "N/A";
+
   const date = new Date(dateString);
+
   return date.toLocaleDateString("en-KE", {
     year: "numeric",
     month: "long",
@@ -161,7 +162,14 @@ function formatDateFull(dateString: string) {
 }
 
 function getStatusBadge(status: string) {
-  const statusMap: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+  const statusMap: Record<
+    string,
+    {
+      color: string;
+      icon: React.ReactNode;
+      label: string;
+    }
+  > = {
     pending: {
       color: "bg-yellow-50 text-yellow-700 border-yellow-200",
       icon: <Clock className="h-3.5 w-3.5" />,
@@ -187,7 +195,9 @@ function getStatusBadge(status: string) {
   const config = statusMap[status] || statusMap.pending;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${config.color}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${config.color}`}
+    >
       {config.icon}
       {config.label}
     </span>
@@ -199,17 +209,24 @@ export default function DailyWagesPage() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [me, setMe] = useState<Me | null>(null);
   const [payrolls, setPayrolls] = useState<CasualPayroll[]>([]);
   const [summary, setSummary] = useState<PayrollSummary | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+
   const [isPaying, setIsPaying] = useState<number | null>(null);
   const [paySuccess, setPaySuccess] = useState<string | null>(null);
-  const [showMpesaModal, setShowMpesaModal] = useState<number | null>(null);
+  const [showMpesaModal, setShowMpesaModal] = useState<number | null>(
+    null,
+  );
   const [mpesaReference, setMpesaReference] = useState("");
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -220,6 +237,7 @@ export default function DailyWagesPage() {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         credentials: "include",
+        cache: "no-store",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -244,7 +262,7 @@ export default function DailyWagesPage() {
             message = data.error;
           }
         } catch {
-          // Keep the default error message.
+          // Keep default message.
         }
 
         throw new Error(message);
@@ -252,7 +270,7 @@ export default function DailyWagesPage() {
 
       return response.json();
     },
-    [router]
+    [router],
   );
 
   const loadData = useCallback(async () => {
@@ -266,7 +284,6 @@ export default function DailyWagesPage() {
         authenticatedFetch("/payroll/casual/summary/"),
       ]);
 
-      // Check role
       if (meData.role === "admin") {
         router.replace("/admin/dashboard");
         return;
@@ -283,7 +300,9 @@ export default function DailyWagesPage() {
       }
 
       setMe(meData);
-      setPayrolls(Array.isArray(payrollsData) ? payrollsData : []);
+      setPayrolls(
+        Array.isArray(payrollsData) ? payrollsData : [],
+      );
       setSummary(summaryData || null);
       setCurrentPage(1);
     } catch (err) {
@@ -311,76 +330,147 @@ export default function DailyWagesPage() {
     setPayError(null);
 
     try {
-      await authenticatedFetch(`/payroll/casual/${payrollId}/pay/`, {
-        method: "PATCH",
-        body: JSON.stringify({ mpesa_reference: mpesaReference.trim() }),
-      });
+      await authenticatedFetch(
+        `/payroll/casual/${payrollId}/pay/`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            mpesa_reference: mpesaReference.trim(),
+          }),
+        },
+      );
 
-      // Refresh data
       await loadData();
+
       setShowMpesaModal(null);
       setMpesaReference("");
-      setPaySuccess(`Employee paid successfully with reference: ${mpesaReference}`);
+
+      setPaySuccess(
+        `Employee paid successfully with reference: ${mpesaReference}`,
+      );
+
       setTimeout(() => setPaySuccess(null), 5000);
     } catch (err) {
-      setPayError(err instanceof Error ? err.message : "Failed to process payment.");
+      setPayError(
+        err instanceof Error
+          ? err.message
+          : "Failed to process payment.",
+      );
     } finally {
       setIsPaying(null);
     }
   };
 
-  // Filter and paginate
-  const filteredPayrolls = payrolls.filter((payroll) => {
-    const matchesSearch =
-      payroll.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payroll.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === "all" || payroll.payment_status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalPages = Math.ceil(filteredPayrolls.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedPayrolls = filteredPayrolls.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  // Stats
-  const stats = {
-    total: payrolls.length,
-    paid: payrolls.filter((p) => p.payment_status === "paid").length,
-    pending: payrolls.filter((p) => p.payment_status === "pending").length,
-    processing: payrolls.filter((p) => p.payment_status === "processing").length,
-    failed: payrolls.filter((p) => p.payment_status === "failed").length,
-  };
-
-  const greeting = (() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  })();
+  /*
+   * ---------------------------------------------------------
+   * LOGOUT
+   * ---------------------------------------------------------
+   */
 
   const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
       });
-    } catch {
-      // Even if the logout request fails, leave the dashboard.
+    } catch (error) {
+      console.error("Logout error:", error);
     } finally {
       router.replace("/");
     }
   };
 
+  const filteredPayrolls = payrolls.filter((payroll) => {
+    const search = searchTerm.toLowerCase();
+
+    const matchesSearch =
+      payroll.employee_name.toLowerCase().includes(search) ||
+      payroll.employee_id.toLowerCase().includes(search);
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      payroll.payment_status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(
+    filteredPayrolls.length / ITEMS_PER_PAGE,
+  );
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const paginatedPayrolls = filteredPayrolls.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
+
+  const stats = {
+    total: payrolls.length,
+    paid: payrolls.filter(
+      (p) => p.payment_status === "paid",
+    ).length,
+    pending: payrolls.filter(
+      (p) => p.payment_status === "pending",
+    ).length,
+    processing: payrolls.filter(
+      (p) => p.payment_status === "processing",
+    ).length,
+    failed: payrolls.filter(
+      (p) => p.payment_status === "failed",
+    ).length,
+  };
+
+  const greeting = (() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+
+    return "Good evening";
+  })();
+
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
+
+  const initials =
+    `${me?.first_name?.[0] || ""}${me?.last_name?.[0] || ""}`.toUpperCase() ||
+    firstName.slice(0, 2).toUpperCase();
+
+  const today = new Intl.DateTimeFormat("en-KE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-          <p className="mt-4 text-sm font-medium text-white">Loading daily wages...</p>
-          <p className="mt-1 text-xs text-slate-400">Fetching payroll data</p>
+
+          <p className="mt-4 text-sm font-medium text-white">
+            Loading daily wages...
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Fetching payroll data
+          </p>
         </div>
       </div>
     );
@@ -388,14 +478,22 @@ export default function DailyWagesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
             <AlertCircle className="h-6 w-6 text-red-600" />
           </div>
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">Unable to load data</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
+          <h1 className="mt-5 text-lg font-semibold text-slate-900">
+            Unable to load data
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
           <button
+            type="button"
             onClick={loadData}
             className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
           >
@@ -410,14 +508,22 @@ export default function DailyWagesPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Success Toast */}
       {paySuccess && (
-        <div className="fixed top-4 right-4 z-50 max-w-md rounded-lg bg-green-50 border border-green-200 p-4 shadow-lg animate-in slide-in-from-top-2">
+        <div className="fixed right-4 top-4 z-50 max-w-md animate-in slide-in-from-top-2 rounded-lg border border-green-200 bg-green-50 p-4 shadow-lg">
           <div className="flex items-start gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+            <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+
             <div>
-              <p className="text-sm font-medium text-green-800">Payment Successful</p>
-              <p className="text-sm text-green-600">{paySuccess}</p>
+              <p className="text-sm font-medium text-green-800">
+                Payment Successful
+              </p>
+
+              <p className="text-sm text-green-600">
+                {paySuccess}
+              </p>
             </div>
+
             <button
+              type="button"
               onClick={() => setPaySuccess(null)}
               className="ml-auto text-green-600 hover:text-green-800"
             >
@@ -432,8 +538,12 @@ export default function DailyWagesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">Pay Employee</h3>
+              <h3 className="text-lg font-semibold text-slate-900">
+                Pay Employee
+              </h3>
+
               <button
+                type="button"
                 onClick={() => {
                   setShowMpesaModal(null);
                   setMpesaReference("");
@@ -450,7 +560,7 @@ export default function DailyWagesPage() {
             </p>
 
             {payError && (
-              <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                 {payError}
               </div>
             )}
@@ -459,10 +569,13 @@ export default function DailyWagesPage() {
               <label className="block text-sm font-medium text-slate-700">
                 M-Pesa Reference
               </label>
+
               <input
                 type="text"
                 value={mpesaReference}
-                onChange={(e) => setMpesaReference(e.target.value)}
+                onChange={(e) =>
+                  setMpesaReference(e.target.value)
+                }
                 placeholder="e.g., QWERTY123"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
@@ -470,6 +583,7 @@ export default function DailyWagesPage() {
 
             <div className="mt-6 flex gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setShowMpesaModal(null);
                   setMpesaReference("");
@@ -479,13 +593,17 @@ export default function DailyWagesPage() {
               >
                 Cancel
               </button>
+
               <button
-                onClick={() => handlePayEmployee(showMpesaModal)}
+                type="button"
+                onClick={() =>
+                  handlePayEmployee(showMpesaModal)
+                }
                 disabled={isPaying === showMpesaModal}
                 className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
                 {isPaying === showMpesaModal ? (
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
                 ) : (
                   "Confirm Payment"
                 )}
@@ -495,216 +613,343 @@ export default function DailyWagesPage() {
         </div>
       )}
 
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 text-white transition-transform duration-300 lg:translate-x-0 ${
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
-          </div>
+        {/* Brand */}
+        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
           <button
+            type="button"
+            onClick={() => {
+              setMobileOpen(false);
+              router.push("/manager/dashboard");
+            }}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold shadow-lg shadow-blue-600/20">
+              N
+            </div>
+
+            <div className="text-left">
+              <div className="text-sm font-bold tracking-wide">
+                NYUTU LIMITED
+              </div>
+
+              <div className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+                ERP MANAGEMENT
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Management
           </p>
 
-          <nav className="mt-3 space-y-1">
+          <nav className="space-y-1">
             <button
-              onClick={() => router.push("/manager/dashboard")}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                router.push("/manager/dashboard");
+              }}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                pathname === "/manager/dashboard"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-white"
+              }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <LayoutDashboard className="h-5 w-5 shrink-0" />
+
+              <span className="flex-1 text-left">
+                Dashboard
+              </span>
+
+              {pathname === "/manager/dashboard" && (
+                <ChevronRightIcon className="h-4 w-4" />
+              )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const isActive = pathname === module.href;
+
+              const isActive =
+                pathname === module.href ||
+                pathname.startsWith(`${module.href}/`);
 
               return (
                 <button
                   key={module.name}
+                  type="button"
                   onClick={() => {
                     setMobileOpen(false);
                     router.push(module.href);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
                     isActive
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                      : "text-slate-400 hover:bg-slate-900 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{module.name}</span>
+                  <Icon className="h-5 w-5 shrink-0" />
+
+                  <span className="flex-1 text-left">
+                    {module.name}
+                  </span>
+
+                  {isActive && (
+                    <ChevronRightIcon className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 rounded-xl bg-white/5 p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <ShieldCheck className="h-5 w-5 text-slate-300" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Manager</p>
-                <p className="truncate text-xs text-slate-500">{me?.email}</p>
-              </div>
+        {/* Manager Profile + Sign Out */}
+        <div className="border-t border-slate-800 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
+              {initials}
+            </div>
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">
+                {fullName}
+              </p>
+
+              <p className="truncate text-xs text-slate-400">
+                Manager
+              </p>
             </div>
           </div>
+
+          {/* CONNECTED SIGN OUT */}
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+
+            <span>
+              {loggingOut ? "Signing out..." : "Sign Out"}
+            </span>
           </button>
         </div>
       </aside>
 
       {/* Main */}
-      <div className="lg:pl-72">
+      <div className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">Daily Wages</p>
-              <p className="text-xs text-slate-500">Manage casual employee payroll</p>
+              <div>
+                <p className="text-xs font-medium text-slate-500">
+                  {today}
+                </p>
+
+                <h1 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
+                  {greeting}, {firstName}
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Manager</p>
+              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                System Online
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-semibold text-slate-900">
+                  {fullName}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  Manager
+                </p>
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                {initials}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* Welcome Banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
+            <div className="relative p-6 sm:p-8">
+              <div className="relative z-10">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300 ring-1 ring-blue-500/20">
+                  <CircleDollarSign className="h-3.5 w-3.5" />
                   Daily Wages
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  Casual Employee Payroll
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  View and manage weekly payroll for casual employees.
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                  View and manage weekly payroll for casual
+                  employees.
                 </p>
               </div>
+
               <button
+                type="button"
                 onClick={loadData}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+                disabled={loading}
+                className="relative z-10 mt-5 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50 sm:absolute sm:right-8 sm:top-8 sm:mt-0"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    loading ? "animate-spin" : ""
+                  }`}
+                />
                 Refresh
               </button>
+
+              <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl" />
             </div>
           </section>
 
           {/* Summary Cards */}
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
-                  <Users className="h-5 w-5 text-slate-700" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Total Employees</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.total}</p>
-                </div>
-              </div>
-            </div>
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard
+              icon={Users}
+              label="Total Employees"
+              value={stats.total}
+              iconClass="bg-slate-100 text-slate-700"
+            />
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-yellow-50 p-2">
-                  <Clock className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Pending</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.pending}</p>
-                </div>
-              </div>
-            </div>
+            <SummaryCard
+              icon={Clock}
+              label="Pending"
+              value={stats.pending}
+              iconClass="bg-yellow-50 text-yellow-600"
+            />
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-50 p-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Paid</p>
-                  <p className="text-2xl font-semibold text-slate-900">{stats.paid}</p>
-                </div>
-              </div>
-            </div>
+            <SummaryCard
+              icon={CheckCircle}
+              label="Paid"
+              value={stats.paid}
+              iconClass="bg-green-50 text-green-600"
+            />
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-red-50 p-2">
-                  <DollarSign className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Total Due</p>
-                  <p className="text-2xl font-semibold text-slate-900">
-                    {formatCurrency(summary?.total_amount_due || 0)}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <SummaryCard
+              icon={DollarSign}
+              label="Total Due"
+              value={formatCurrency(
+                summary?.total_amount_due || 0,
+              )}
+              iconClass="bg-blue-50 text-blue-600"
+            />
           </section>
 
-          {/* Payroll Period Info */}
+          {/* Payroll Period */}
           {summary?.payroll_period && (
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-slate-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                    <Calendar className="h-5 w-5 text-slate-600" />
+                  </div>
+
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Current Payroll Period</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Current Payroll Period
+                    </p>
+
                     <p className="text-sm text-slate-500">
-                      {formatDateFull(summary.payroll_period.start_date)} — {formatDateFull(summary.payroll_period.end_date)}
+                      {formatDateFull(
+                        summary.payroll_period.start_date,
+                      )}{" "}
+                      —{" "}
+                      {formatDateFull(
+                        summary.payroll_period.end_date,
+                      )}
                     </p>
                   </div>
                 </div>
+
                 <div className="flex flex-wrap gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-slate-600">
-                    <span className="font-medium">{formatCurrency(summary.total_amount_due || 0)}</span>
-                    <span className="text-slate-400">due</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-slate-700">
+                      {formatCurrency(
+                        summary.total_amount_due || 0,
+                      )}
+                    </span>
+
+                    <span className="text-slate-400">
+                      due
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <span className="font-medium">{formatCurrency(summary.total_amount_paid || 0)}</span>
-                    <span className="text-green-400">paid</span>
+
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-green-600">
+                      {formatCurrency(
+                        summary.total_amount_paid || 0,
+                      )}
+                    </span>
+
+                    <span className="text-green-400">
+                      paid
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1 text-yellow-600">
-                    <span className="font-medium">{formatCurrency(summary.total_amount_pending || 0)}</span>
-                    <span className="text-yellow-400">pending</span>
+
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-yellow-600">
+                      {formatCurrency(
+                        summary.total_amount_pending || 0,
+                      )}
+                    </span>
+
+                    <span className="text-yellow-400">
+                      pending
+                    </span>
                   </div>
                 </div>
               </div>
@@ -716,6 +961,7 @@ export default function DailyWagesPage() {
             <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                 <input
                   type="text"
                   placeholder="Search by name or employee ID..."
@@ -724,23 +970,26 @@ export default function DailyWagesPage() {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full rounded-lg border border-slate-200 pl-9 pr-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
 
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-slate-400" />
+
                 <select
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
+                  <option value="processing">
+                    Processing
+                  </option>
                   <option value="paid">Paid</option>
                   <option value="failed">Failed</option>
                 </select>
@@ -748,34 +997,82 @@ export default function DailyWagesPage() {
             </div>
 
             <div className="text-sm text-slate-500">
-              {filteredPayrolls.length} employee{filteredPayrolls.length !== 1 ? "s" : ""}
+              {filteredPayrolls.length} employee
+              {filteredPayrolls.length !== 1 ? "s" : ""}
             </div>
           </section>
 
           {/* Table */}
           <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-slate-900">
+                    Casual Employee Payroll
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Payroll records and payment status
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  {filteredPayrolls.length} Records
+                </div>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Employee</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">ID</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Days Worked</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Daily Wage</th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">Amount Due</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-center font-medium text-slate-600">Action</th>
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Employee
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      ID
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Days Worked
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Daily Wage
+                    </th>
+
+                    <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Amount Due
+                    </th>
+
+                    <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Action
+                    </th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-slate-100">
                   {paginatedPayrolls.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-16 text-center"
+                      >
                         <div className="flex flex-col items-center gap-2">
                           <Users className="h-8 w-8 text-slate-300" />
-                          <p>No payroll records found</p>
+
+                          <p className="font-medium text-slate-600">
+                            No payroll records found
+                          </p>
+
                           <p className="text-xs text-slate-400">
-                            {searchTerm || statusFilter !== "all"
+                            {searchTerm ||
+                            statusFilter !== "all"
                               ? "Try adjusting your filters"
                               : "No casual employees have been processed yet"}
                           </p>
@@ -784,37 +1081,62 @@ export default function DailyWagesPage() {
                     </tr>
                   ) : (
                     paginatedPayrolls.map((payroll) => (
-                      <tr key={payroll.id} className="hover:bg-slate-50/50 transition">
-                        <td className="px-4 py-3.5">
+                      <tr
+                        key={payroll.id}
+                        className="transition hover:bg-slate-50"
+                      >
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-700">
-                              {payroll.employee_name.charAt(0).toUpperCase()}
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-600">
+                              {payroll.employee_name
+                                .charAt(0)
+                                .toUpperCase()}
                             </div>
-                            <span className="font-medium text-slate-900">
+
+                            <span className="font-semibold text-slate-900">
                               {payroll.employee_name}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600 font-mono text-xs">
+
+                        <td className="px-5 py-4 font-mono text-xs text-slate-600">
                           {payroll.employee_id}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600">
-                          {payroll.days_worked} day{payroll.days_worked !== 1 ? "s" : ""}
+
+                        <td className="px-5 py-4 text-slate-600">
+                          {payroll.days_worked} day
+                          {payroll.days_worked !== 1
+                            ? "s"
+                            : ""}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600">
+
+                        <td className="px-5 py-4 text-slate-600">
                           {formatCurrency(payroll.daily_wage)}
                         </td>
-                        <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
+
+                        <td className="px-5 py-4 text-right font-semibold text-slate-900">
                           {formatCurrency(payroll.amount_due)}
                         </td>
-                        <td className="px-4 py-3.5 text-center">
-                          {getStatusBadge(payroll.payment_status)}
+
+                        <td className="px-5 py-4 text-center">
+                          {getStatusBadge(
+                            payroll.payment_status,
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 text-center">
-                          {payroll.payment_status === "pending" || payroll.payment_status === "processing" ? (
+
+                        <td className="px-5 py-4 text-center">
+                          {payroll.payment_status ===
+                            "pending" ||
+                          payroll.payment_status ===
+                            "processing" ? (
                             <button
-                              onClick={() => setShowMpesaModal(payroll.id)}
-                              disabled={isPaying === payroll.id}
+                              type="button"
+                              onClick={() =>
+                                setShowMpesaModal(payroll.id)
+                              }
+                              disabled={
+                                isPaying === payroll.id
+                              }
                               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
                             >
                               {isPaying === payroll.id ? (
@@ -822,12 +1144,18 @@ export default function DailyWagesPage() {
                               ) : (
                                 <CreditCard className="h-3.5 w-3.5" />
                               )}
+
                               Pay
                             </button>
-                          ) : payroll.payment_status === "paid" ? (
-                            <span className="text-xs text-green-600 font-medium">✓ Paid</span>
+                          ) : payroll.payment_status ===
+                            "paid" ? (
+                            <span className="text-xs font-medium text-green-600">
+                              ✓ Paid
+                            </span>
                           ) : (
-                            <span className="text-xs text-red-600 font-medium">Failed</span>
+                            <span className="text-xs font-medium text-red-600">
+                              Failed
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -839,21 +1167,36 @@ export default function DailyWagesPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
+              <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-slate-500">
-                  Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredPayrolls.length)} of{" "}
-                  {filteredPayrolls.length}
+                  Showing {startIndex + 1}–
+                  {Math.min(
+                    startIndex + ITEMS_PER_PAGE,
+                    filteredPayrolls.length,
+                  )}{" "}
+                  of {filteredPayrolls.length}
                 </div>
+
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage((page) =>
+                        Math.max(1, page - 1),
+                      )
+                    }
                     disabled={currentPage === 1}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1,
+                  ).map((page) => (
                     <button
+                      type="button"
                       key={page}
                       onClick={() => setCurrentPage(page)}
                       className={`rounded-lg px-3 py-1.5 text-sm transition ${
@@ -865,10 +1208,16 @@ export default function DailyWagesPage() {
                       {page}
                     </button>
                   ))}
+
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage((page) =>
+                        Math.min(totalPages, page + 1),
+                      )
+                    }
                     disabled={currentPage === totalPages}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRightIcon className="h-4 w-4" />
                   </button>
@@ -878,13 +1227,52 @@ export default function DailyWagesPage() {
           </section>
 
           {/* Footer */}
-          <footer className="mt-9 border-t border-slate-200 pt-6">
+          <footer className="mt-8 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-              <p>Management Portal · Manager Access</p>
+              <p>
+                © {new Date().getFullYear()} NYUTU LIMITED
+              </p>
+
+              <p>
+                Management Portal · Manager Access
+              </p>
             </div>
           </footer>
         </main>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  iconClass,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number | string;
+  iconClass: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+            {value}
+          </p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconClass}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </div>
   );
