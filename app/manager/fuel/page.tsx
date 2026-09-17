@@ -24,7 +24,6 @@ import {
   RefreshCw,
   Receipt,
   FileText,
-  ShieldCheck,
   CheckCircle,
   BarChart3,
   PieChart,
@@ -198,12 +197,14 @@ export default function FuelPage() {
 
   const [purchases, setPurchases] = useState<FuelPurchase[]>([]);
   const [issues, setIssues] = useState<FuelIssue[]>([]);
-  const [dailySummary, setDailySummary] = useState<FuelSummary | null>(null);
+  const [dailySummary, setDailySummary] =
+    useState<FuelSummary | null>(null);
   const [monthlySummary, setMonthlySummary] =
     useState<FuelSummary | null>(null);
   const [reconciliation, setReconciliation] =
     useState<FuelReconciliation | null>(null);
-  const [efficiency, setEfficiency] = useState<VehicleEfficiency[]>([]);
+  const [efficiency, setEfficiency] =
+    useState<VehicleEfficiency[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -301,16 +302,25 @@ export default function FuelPage() {
       }
 
       setMe(meData);
+
       setPurchases(
         Array.isArray(purchasesData) ? purchasesData : []
       );
-      setIssues(Array.isArray(issuesData) ? issuesData : []);
+
+      setIssues(
+        Array.isArray(issuesData) ? issuesData : []
+      );
+
       setDailySummary(dailyData || null);
       setMonthlySummary(monthlyData || null);
       setReconciliation(reconciliationData || null);
+
       setEfficiency(
-        Array.isArray(efficiencyData) ? efficiencyData : []
+        Array.isArray(efficiencyData)
+          ? efficiencyData
+          : []
       );
+
       setCurrentPage(1);
     } catch (err) {
       if (err instanceof Error && err.message) {
@@ -331,7 +341,9 @@ export default function FuelPage() {
     const searchLower = searchTerm.toLowerCase();
 
     return (
-      purchase.supplier.toLowerCase().includes(searchLower) ||
+      purchase.supplier
+        .toLowerCase()
+        .includes(searchLower) ||
       (purchase.receipt_reference
         ?.toLowerCase()
         .includes(searchLower) ??
@@ -343,8 +355,13 @@ export default function FuelPage() {
     const searchLower = searchTerm.toLowerCase();
 
     return (
-      issue.vehicle_name.toLowerCase().includes(searchLower) ||
-      (issue.remarks?.toLowerCase().includes(searchLower) ?? false)
+      issue.vehicle_name
+        .toLowerCase()
+        .includes(searchLower) ||
+      (issue.remarks
+        ?.toLowerCase()
+        .includes(searchLower) ??
+        false)
     );
   });
 
@@ -356,7 +373,8 @@ export default function FuelPage() {
     filteredIssues.length / ITEMS_PER_PAGE
   );
 
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const startIndex =
+    (currentPage - 1) * ITEMS_PER_PAGE;
 
   const paginatedPurchases = filteredPurchases.slice(
     startIndex,
@@ -371,16 +389,22 @@ export default function FuelPage() {
   const stats = {
     totalPurchases: purchases.length,
     totalIssues: issues.length,
+
     totalLitresPurchased: purchases.reduce(
-      (sum, purchase) => sum + Number(purchase.litres || 0),
+      (sum, purchase) =>
+        sum + Number(purchase.litres || 0),
       0
     ),
+
     totalLitresIssued: issues.reduce(
-      (sum, issue) => sum + Number(issue.litres || 0),
+      (sum, issue) =>
+        sum + Number(issue.litres || 0),
       0
     ),
+
     totalCost: purchases.reduce(
-      (sum, purchase) => sum + Number(purchase.cost || 0),
+      (sum, purchase) =>
+        sum + Number(purchase.cost || 0),
       0
     ),
   };
@@ -395,14 +419,11 @@ export default function FuelPage() {
   })();
 
   /*
-   * Connected logout.
-   *
-   * This is the same pattern as the Admin Dashboard:
-   * 1. Prevent duplicate clicks.
-   * 2. Set the loading state.
-   * 3. POST to /logout/.
-   * 4. Send the HttpOnly cookie with credentials: "include".
-   * 5. Redirect to the login page whether the request succeeds or fails.
+   * Connected logout:
+   * - Prevents duplicate clicks
+   * - Sends the HttpOnly authentication cookie
+   * - Calls the backend logout endpoint
+   * - Redirects to login even if the request fails
    */
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -430,8 +451,9 @@ export default function FuelPage() {
     "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
-    firstName;
+    `${me?.first_name || ""} ${
+      me?.last_name || ""
+    }`.trim() || firstName;
 
   const initials =
     fullName
@@ -442,7 +464,9 @@ export default function FuelPage() {
       .slice(0, 2)
       .toUpperCase() || "M";
 
-  const getEfficiencyColor = (efficiency: number | string) => {
+  const getEfficiencyColor = (
+    efficiency: number | string
+  ) => {
     const value = Number(efficiency);
 
     if (value === 0) return "text-slate-500";
@@ -523,8 +547,12 @@ export default function FuelPage() {
 
                   <p className="text-sm text-slate-500">
                     {detailType === "purchase"
-                      ? (selectedItem as FuelPurchase).supplier
-                      : (selectedItem as FuelIssue).vehicle_name}
+                      ? (
+                          selectedItem as FuelPurchase
+                        ).supplier
+                      : (
+                          selectedItem as FuelIssue
+                        ).vehicle_name}
                   </p>
                 </div>
               </div>
@@ -550,8 +578,12 @@ export default function FuelPage() {
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {formatDateFull(
                     detailType === "purchase"
-                      ? (selectedItem as FuelPurchase).fuel_date
-                      : (selectedItem as FuelIssue).fuel_date
+                      ? (
+                          selectedItem as FuelPurchase
+                        ).fuel_date
+                      : (
+                          selectedItem as FuelIssue
+                        ).fuel_date
                   )}
                 </p>
               </div>
@@ -565,8 +597,12 @@ export default function FuelPage() {
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {formatNumber(
                     detailType === "purchase"
-                      ? (selectedItem as FuelPurchase).litres
-                      : (selectedItem as FuelIssue).litres
+                      ? (
+                          selectedItem as FuelPurchase
+                        ).litres
+                      : (
+                          selectedItem as FuelIssue
+                        ).litres
                   )}{" "}
                   L
                 </p>
@@ -582,23 +618,29 @@ export default function FuelPage() {
 
                     <p className="mt-2 text-sm font-medium text-slate-900">
                       {formatCurrency(
-                        (selectedItem as FuelPurchase).cost
+                        (
+                          selectedItem as FuelPurchase
+                        ).cost
                       )}
                     </p>
                   </div>
 
-                  {(selectedItem as FuelPurchase)
-                    .receipt_reference && (
+                  {(
+                    selectedItem as FuelPurchase
+                  ).receipt_reference && (
                     <div className="rounded-xl border border-slate-200 p-4">
                       <div className="flex items-center gap-2 text-sm text-slate-500">
                         <FileText className="h-4 w-4" />
-                        <span>Receipt Reference</span>
+                        <span>
+                          Receipt Reference
+                        </span>
                       </div>
 
                       <p className="mt-2 text-sm font-medium text-slate-900">
                         {
-                          (selectedItem as FuelPurchase)
-                            .receipt_reference
+                          (
+                            selectedItem as FuelPurchase
+                          ).receipt_reference
                         }
                       </p>
                     </div>
@@ -611,19 +653,24 @@ export default function FuelPage() {
                   <div className="rounded-xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                       <Gauge className="h-4 w-4" />
-                      <span>Odometer Reading</span>
+                      <span>
+                        Odometer Reading
+                      </span>
                     </div>
 
                     <p className="mt-2 text-sm font-medium text-slate-900">
                       {formatNumber(
-                        (selectedItem as FuelIssue)
-                          .odometer_reading
+                        (
+                          selectedItem as FuelIssue
+                        ).odometer_reading
                       )}{" "}
                       km
                     </p>
                   </div>
 
-                  {(selectedItem as FuelIssue).remarks && (
+                  {(
+                    selectedItem as FuelIssue
+                  ).remarks && (
                     <div className="col-span-2 rounded-xl border border-slate-200 p-4">
                       <div className="flex items-center gap-2 text-sm text-slate-500">
                         <FileText className="h-4 w-4" />
@@ -631,7 +678,11 @@ export default function FuelPage() {
                       </div>
 
                       <p className="mt-2 text-sm font-medium text-slate-900">
-                        {(selectedItem as FuelIssue).remarks}
+                        {
+                          (
+                            selectedItem as FuelIssue
+                          ).remarks
+                        }
                       </p>
                     </div>
                   )}
@@ -657,7 +708,9 @@ export default function FuelPage() {
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
@@ -698,7 +751,8 @@ export default function FuelPage() {
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const isActive = pathname === module.href;
+              const isActive =
+                pathname === module.href;
 
               return (
                 <button
@@ -742,6 +796,7 @@ export default function FuelPage() {
           </div>
 
           <button
+            type="button"
             onClick={handleLogout}
             disabled={loggingOut}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
@@ -753,7 +808,9 @@ export default function FuelPage() {
             )}
 
             <span>
-              {loggingOut ? "Signing out..." : "Sign Out"}
+              {loggingOut
+                ? "Signing out..."
+                : "Sign Out"}
             </span>
           </button>
         </div>
@@ -813,8 +870,8 @@ export default function FuelPage() {
                 </h1>
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  Monitor fuel purchases, issues, and vehicle efficiency
-                  across the fleet.
+                  Monitor fuel purchases, issues, and
+                  vehicle efficiency across the fleet.
                 </p>
               </div>
 
@@ -878,7 +935,10 @@ export default function FuelPage() {
                   </p>
 
                   <p className="text-2xl font-semibold text-slate-900">
-                    {formatNumber(stats.totalLitresPurchased)} L
+                    {formatNumber(
+                      stats.totalLitresPurchased
+                    )}{" "}
+                    L
                   </p>
                 </div>
               </div>
@@ -914,7 +974,10 @@ export default function FuelPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-slate-400">Purchased</p>
+                    <p className="text-xs text-slate-400">
+                      Purchased
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
                       {formatNumber(
                         dailySummary.fuel_purchased_litres
@@ -924,7 +987,10 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Issued</p>
+                    <p className="text-xs text-slate-400">
+                      Issued
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
                       {formatNumber(
                         dailySummary.fuel_issued_litres
@@ -934,7 +1000,10 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Remaining</p>
+                    <p className="text-xs text-slate-400">
+                      Remaining
+                    </p>
+
                     <p className="text-lg font-semibold text-blue-600">
                       {formatNumber(
                         dailySummary.fuel_remaining_litres
@@ -944,9 +1013,14 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Cost</p>
+                    <p className="text-xs text-slate-400">
+                      Cost
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatCurrency(dailySummary.fuel_cost)}
+                      {formatCurrency(
+                        dailySummary.fuel_cost
+                      )}
                     </p>
                   </div>
                 </div>
@@ -957,14 +1031,19 @@ export default function FuelPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
                   <Calendar className="h-4 w-4" />
+
                   <span>
-                    {monthlySummary.month} {monthlySummary.year} Summary
+                    {monthlySummary.month}{" "}
+                    {monthlySummary.year} Summary
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-slate-400">Purchased</p>
+                    <p className="text-xs text-slate-400">
+                      Purchased
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
                       {formatNumber(
                         monthlySummary.fuel_purchased_litres
@@ -974,7 +1053,10 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Issued</p>
+                    <p className="text-xs text-slate-400">
+                      Issued
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
                       {formatNumber(
                         monthlySummary.fuel_issued_litres
@@ -984,7 +1066,10 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Remaining</p>
+                    <p className="text-xs text-slate-400">
+                      Remaining
+                    </p>
+
                     <p className="text-lg font-semibold text-blue-600">
                       {formatNumber(
                         monthlySummary.fuel_remaining_litres
@@ -994,9 +1079,14 @@ export default function FuelPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-slate-400">Cost</p>
+                    <p className="text-xs text-slate-400">
+                      Cost
+                    </p>
+
                     <p className="text-lg font-semibold text-slate-900">
-                      {formatCurrency(monthlySummary.fuel_cost)}
+                      {formatCurrency(
+                        monthlySummary.fuel_cost
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1141,6 +1231,7 @@ export default function FuelPage() {
             {/* Overview */}
             {activeTab === "overview" && (
               <div className="space-y-6">
+                {/* Recent Purchases */}
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                   <div className="border-b border-slate-200 px-5 py-4">
                     <h3 className="font-semibold text-slate-900">
@@ -1155,15 +1246,19 @@ export default function FuelPage() {
                           <th className="px-4 py-3 text-left font-medium text-slate-600">
                             Date
                           </th>
+
                           <th className="px-4 py-3 text-left font-medium text-slate-600">
                             Supplier
                           </th>
+
                           <th className="px-4 py-3 text-right font-medium text-slate-600">
                             Litres
                           </th>
+
                           <th className="px-4 py-3 text-right font-medium text-slate-600">
                             Cost
                           </th>
+
                           <th className="px-4 py-3 text-center font-medium text-slate-600">
                             Action
                           </th>
@@ -1171,42 +1266,57 @@ export default function FuelPage() {
                       </thead>
 
                       <tbody className="divide-y divide-slate-100">
-                        {purchases.slice(0, 5).map((purchase) => (
-                          <tr
-                            key={purchase.id}
-                            className="hover:bg-slate-50/50"
-                          >
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDate(purchase.fuel_date)}
-                            </td>
+                        {purchases
+                          .slice(0, 5)
+                          .map((purchase) => (
+                            <tr
+                              key={purchase.id}
+                              className="hover:bg-slate-50/50"
+                            >
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDate(
+                                  purchase.fuel_date
+                                )}
+                              </td>
 
-                            <td className="px-4 py-3 font-medium text-slate-900">
-                              {purchase.supplier}
-                            </td>
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                {purchase.supplier}
+                              </td>
 
-                            <td className="px-4 py-3 text-right text-slate-600">
-                              {formatNumber(purchase.litres)} L
-                            </td>
+                              <td className="px-4 py-3 text-right text-slate-600">
+                                {formatNumber(
+                                  purchase.litres
+                                )}{" "}
+                                L
+                              </td>
 
-                            <td className="px-4 py-3 text-right font-medium text-slate-900">
-                              {formatCurrency(purchase.cost)}
-                            </td>
+                              <td className="px-4 py-3 text-right font-medium text-slate-900">
+                                {formatCurrency(
+                                  purchase.cost
+                                )}
+                              </td>
 
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => {
-                                  setSelectedItem(purchase);
-                                  setDetailType("purchase");
-                                  setShowDetailModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => {
+                                    setSelectedItem(
+                                      purchase
+                                    );
+                                    setDetailType(
+                                      "purchase"
+                                    );
+                                    setShowDetailModal(
+                                      true
+                                    );
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
 
                         {purchases.length === 0 && (
                           <tr>
@@ -1223,6 +1333,7 @@ export default function FuelPage() {
                   </div>
                 </div>
 
+                {/* Recent Issues */}
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                   <div className="border-b border-slate-200 px-5 py-4">
                     <h3 className="font-semibold text-slate-900">
@@ -1237,15 +1348,19 @@ export default function FuelPage() {
                           <th className="px-4 py-3 text-left font-medium text-slate-600">
                             Date
                           </th>
+
                           <th className="px-4 py-3 text-left font-medium text-slate-600">
                             Vehicle
                           </th>
+
                           <th className="px-4 py-3 text-right font-medium text-slate-600">
                             Litres
                           </th>
+
                           <th className="px-4 py-3 text-right font-medium text-slate-600">
                             Odometer
                           </th>
+
                           <th className="px-4 py-3 text-center font-medium text-slate-600">
                             Action
                           </th>
@@ -1253,45 +1368,56 @@ export default function FuelPage() {
                       </thead>
 
                       <tbody className="divide-y divide-slate-100">
-                        {issues.slice(0, 5).map((issue) => (
-                          <tr
-                            key={issue.id}
-                            className="hover:bg-slate-50/50"
-                          >
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDate(issue.fuel_date)}
-                            </td>
+                        {issues
+                          .slice(0, 5)
+                          .map((issue) => (
+                            <tr
+                              key={issue.id}
+                              className="hover:bg-slate-50/50"
+                            >
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDate(
+                                  issue.fuel_date
+                                )}
+                              </td>
 
-                            <td className="px-4 py-3 font-medium text-slate-900">
-                              {issue.vehicle_name}
-                            </td>
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                {issue.vehicle_name}
+                              </td>
 
-                            <td className="px-4 py-3 text-right text-slate-600">
-                              {formatNumber(issue.litres)} L
-                            </td>
+                              <td className="px-4 py-3 text-right text-slate-600">
+                                {formatNumber(
+                                  issue.litres
+                                )}{" "}
+                                L
+                              </td>
 
-                            <td className="px-4 py-3 text-right text-slate-600">
-                              {formatNumber(
-                                issue.odometer_reading
-                              )}{" "}
-                              km
-                            </td>
+                              <td className="px-4 py-3 text-right text-slate-600">
+                                {formatNumber(
+                                  issue.odometer_reading
+                                )}{" "}
+                                km
+                              </td>
 
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => {
-                                  setSelectedItem(issue);
-                                  setDetailType("issue");
-                                  setShowDetailModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  onClick={() => {
+                                    setSelectedItem(
+                                      issue
+                                    );
+                                    setDetailType("issue");
+                                    setShowDetailModal(
+                                      true
+                                    );
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
 
                         {issues.length === 0 && (
                           <tr>
@@ -1341,18 +1467,23 @@ export default function FuelPage() {
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Date
                         </th>
+
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Supplier
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Litres
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Cost
                         </th>
+
                         <th className="px-4 py-3 text-center font-medium text-slate-600">
                           Receipt
                         </th>
+
                         <th className="px-4 py-3 text-center font-medium text-slate-600">
                           Action
                         </th>
@@ -1360,57 +1491,75 @@ export default function FuelPage() {
                     </thead>
 
                     <tbody className="divide-y divide-slate-100">
-                      {paginatedPurchases.map((purchase) => (
-                        <tr
-                          key={purchase.id}
-                          className="hover:bg-slate-50/50"
-                        >
-                          <td className="px-4 py-3 text-slate-600">
-                            {formatDate(purchase.fuel_date)}
-                          </td>
+                      {paginatedPurchases.map(
+                        (purchase) => (
+                          <tr
+                            key={purchase.id}
+                            className="hover:bg-slate-50/50"
+                          >
+                            <td className="px-4 py-3 text-slate-600">
+                              {formatDate(
+                                purchase.fuel_date
+                              )}
+                            </td>
 
-                          <td className="px-4 py-3 font-medium text-slate-900">
-                            {purchase.supplier}
-                          </td>
+                            <td className="px-4 py-3 font-medium text-slate-900">
+                              {purchase.supplier}
+                            </td>
 
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(purchase.litres)} L
-                          </td>
+                            <td className="px-4 py-3 text-right text-slate-600">
+                              {formatNumber(
+                                purchase.litres
+                              )}{" "}
+                              L
+                            </td>
 
-                          <td className="px-4 py-3 text-right font-medium text-slate-900">
-                            {formatCurrency(purchase.cost)}
-                          </td>
+                            <td className="px-4 py-3 text-right font-medium text-slate-900">
+                              {formatCurrency(
+                                purchase.cost
+                              )}
+                            </td>
 
-                          <td className="px-4 py-3 text-center">
-                            {purchase.receipt_reference ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                {purchase.receipt_reference}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">
-                                —
-                              </span>
-                            )}
-                          </td>
+                            <td className="px-4 py-3 text-center">
+                              {purchase.receipt_reference ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  {
+                                    purchase.receipt_reference
+                                  }
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400">
+                                  —
+                                </span>
+                              )}
+                            </td>
 
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedItem(purchase);
-                                setDetailType("purchase");
-                                setShowDetailModal(true);
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => {
+                                  setSelectedItem(
+                                    purchase
+                                  );
+                                  setDetailType(
+                                    "purchase"
+                                  );
+                                  setShowDetailModal(
+                                    true
+                                  );
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      )}
 
-                      {paginatedPurchases.length === 0 && (
+                      {paginatedPurchases.length ===
+                        0 && (
                         <tr>
                           <td
                             colSpan={6}
@@ -1438,7 +1587,9 @@ export default function FuelPage() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() =>
-                          setCurrentPage((p) => Math.max(1, p - 1))
+                          setCurrentPage((p) =>
+                            Math.max(1, p - 1)
+                          )
                         }
                         disabled={currentPage === 1}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
@@ -1447,12 +1598,16 @@ export default function FuelPage() {
                       </button>
 
                       {Array.from(
-                        { length: totalPurchasesPages },
+                        {
+                          length: totalPurchasesPages,
+                        },
                         (_, i) => i + 1
                       ).map((page) => (
                         <button
                           key={page}
-                          onClick={() => setCurrentPage(page)}
+                          onClick={() =>
+                            setCurrentPage(page)
+                          }
                           className={`rounded-lg px-3 py-1.5 text-sm transition ${
                             page === currentPage
                               ? "bg-slate-900 text-white"
@@ -1466,11 +1621,15 @@ export default function FuelPage() {
                       <button
                         onClick={() =>
                           setCurrentPage((p) =>
-                            Math.min(totalPurchasesPages, p + 1)
+                            Math.min(
+                              totalPurchasesPages,
+                              p + 1
+                            )
                           )
                         }
                         disabled={
-                          currentPage === totalPurchasesPages
+                          currentPage ===
+                          totalPurchasesPages
                         }
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                       >
@@ -1513,15 +1672,19 @@ export default function FuelPage() {
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Date
                         </th>
+
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Vehicle
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Litres
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Odometer
                         </th>
+
                         <th className="px-4 py-3 text-center font-medium text-slate-600">
                           Action
                         </th>
@@ -1535,7 +1698,9 @@ export default function FuelPage() {
                           className="hover:bg-slate-50/50"
                         >
                           <td className="px-4 py-3 text-slate-600">
-                            {formatDate(issue.fuel_date)}
+                            {formatDate(
+                              issue.fuel_date
+                            )}
                           </td>
 
                           <td className="px-4 py-3 font-medium text-slate-900">
@@ -1597,7 +1762,9 @@ export default function FuelPage() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() =>
-                          setCurrentPage((p) => Math.max(1, p - 1))
+                          setCurrentPage((p) =>
+                            Math.max(1, p - 1)
+                          )
                         }
                         disabled={currentPage === 1}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
@@ -1606,12 +1773,16 @@ export default function FuelPage() {
                       </button>
 
                       {Array.from(
-                        { length: totalIssuesPages },
+                        {
+                          length: totalIssuesPages,
+                        },
                         (_, i) => i + 1
                       ).map((page) => (
                         <button
                           key={page}
-                          onClick={() => setCurrentPage(page)}
+                          onClick={() =>
+                            setCurrentPage(page)
+                          }
                           className={`rounded-lg px-3 py-1.5 text-sm transition ${
                             page === currentPage
                               ? "bg-slate-900 text-white"
@@ -1625,7 +1796,10 @@ export default function FuelPage() {
                       <button
                         onClick={() =>
                           setCurrentPage((p) =>
-                            Math.min(totalIssuesPages, p + 1)
+                            Math.min(
+                              totalIssuesPages,
+                              p + 1
+                            )
                           )
                         }
                         disabled={
@@ -1661,18 +1835,23 @@ export default function FuelPage() {
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Rank
                         </th>
+
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Vehicle
                         </th>
+
                         <th className="px-4 py-3 text-left font-medium text-slate-600">
                           Operator
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Distance
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Fuel Used
                         </th>
+
                         <th className="px-4 py-3 text-right font-medium text-slate-600">
                           Efficiency
                         </th>
@@ -1680,63 +1859,65 @@ export default function FuelPage() {
                     </thead>
 
                     <tbody className="divide-y divide-slate-100">
-                      {efficiency.map((item, index) => (
-                        <tr
-                          key={item.vehicle}
-                          className="hover:bg-slate-50/50"
-                        >
-                          <td className="px-4 py-3">
-                            <div
-                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
-                                index === 0
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : index === 1
-                                  ? "bg-slate-100 text-slate-600"
-                                  : index === 2
-                                  ? "bg-orange-100 text-orange-700"
-                                  : "bg-slate-50 text-slate-500"
-                              }`}
-                            >
-                              {index + 1}
-                            </div>
-                          </td>
+                      {efficiency.map(
+                        (item, index) => (
+                          <tr
+                            key={item.vehicle}
+                            className="hover:bg-slate-50/50"
+                          >
+                            <td className="px-4 py-3">
+                              <div
+                                className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                                  index === 0
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : index === 1
+                                    ? "bg-slate-100 text-slate-600"
+                                    : index === 2
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-slate-50 text-slate-500"
+                                }`}
+                              >
+                                {index + 1}
+                              </div>
+                            </td>
 
-                          <td className="px-4 py-3 font-medium text-slate-900">
-                            {item.vehicle}
-                          </td>
+                            <td className="px-4 py-3 font-medium text-slate-900">
+                              {item.vehicle}
+                            </td>
 
-                          <td className="px-4 py-3 text-slate-600">
-                            {item.operator || "—"}
-                          </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {item.operator || "—"}
+                            </td>
 
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(
-                              item.distance_travelled
-                            )}{" "}
-                            km
-                          </td>
-
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {formatNumber(
-                              item.fuel_used_litres
-                            )}{" "}
-                            L
-                          </td>
-
-                          <td className="px-4 py-3 text-right">
-                            <span
-                              className={`font-semibold ${getEfficiencyColor(
-                                item.fuel_efficiency
-                              )}`}
-                            >
+                            <td className="px-4 py-3 text-right text-slate-600">
                               {formatNumber(
-                                item.fuel_efficiency
+                                item.distance_travelled
                               )}{" "}
-                              km/L
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                              km
+                            </td>
+
+                            <td className="px-4 py-3 text-right text-slate-600">
+                              {formatNumber(
+                                item.fuel_used_litres
+                              )}{" "}
+                              L
+                            </td>
+
+                            <td className="px-4 py-3 text-right">
+                              <span
+                                className={`font-semibold ${getEfficiencyColor(
+                                  item.fuel_efficiency
+                                )}`}
+                              >
+                                {formatNumber(
+                                  item.fuel_efficiency
+                                )}{" "}
+                                km/L
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      )}
 
                       {efficiency.length === 0 && (
                         <tr>
@@ -1762,7 +1943,9 @@ export default function FuelPage() {
                 © {new Date().getFullYear()} NYUTU LIMITED
               </p>
 
-              <p>Management Portal · Manager Access</p>
+              <p>
+                Management Portal · Manager Access
+              </p>
             </div>
           </footer>
         </main>
