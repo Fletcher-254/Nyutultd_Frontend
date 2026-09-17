@@ -2,26 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
 import {
-  LayoutDashboard,
-  Users,
+  AlertCircle,
+  BriefcaseBusiness,
   CalendarCheck,
-  Truck,
-  Fuel,
+  ChevronRight,
   CircleDollarSign,
-  Store,
+  Clock3,
+  FileText,
+  Fuel,
+  LayoutDashboard,
   LogOut,
   Menu,
-  X,
-  ChevronRight,
-  ShieldCheck,
-  UserRound,
-  Loader2,
-  AlertCircle,
+  RefreshCw,
   Search,
-  Filter,
-  BriefcaseBusiness,
+  Truck,
+  UserCheck,
+  Users,
+  UserX,
+  X,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -35,69 +34,38 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
-  first_name?: string | null;
-  last_name?: string | null;
+  first_name?: string;
+  last_name?: string;
   role: Role;
+  is_active?: boolean;
+  is_verified?: boolean;
+  created_at?: string;
 }
 
 interface Employee {
   id: number;
-  employee_id: string;
-  full_name: string;
-  employment_type: string;
-  daily_wage: string | number;
+  employee_id?: string;
+  full_name?: string;
+  national_id?: string;
+  phone_number?: string;
+  passport_photo?: string | null;
+  employment_type?: string;
+  position?: string;
+  department?: string;
+  salary?: number | string;
+  daily_rate?: number | string;
+  is_active?: boolean;
+  created_at?: string;
 }
 
 interface Module {
-  name: string;
-  description: string;
+  label: string;
   href: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
-const modules: Module[] = [
-  {
-    name: "Employees",
-    description: "View and manage employee records",
-    href: "/manager/employees",
-    icon: Users,
-  },
-  {
-    name: "Attendance",
-    description: "Monitor daily attendance",
-    href: "/manager/attendance",
-    icon: CalendarCheck,
-  },
-  {
-    name: "Daily Wages",
-    description: "View casual employee wages",
-    href: "/manager/daily-wages",
-    icon: CircleDollarSign,
-  },
-  {
-    name: "Vehicles",
-    description: "View company vehicles",
-    href: "/manager/vehicles",
-    icon: Truck,
-  },
-  {
-    name: "Fuel",
-    description: "Monitor fuel usage",
-    href: "/manager/fuel",
-    icon: Fuel,
-  },
-  {
-    name: "Vendors",
-    description: "View vendors and transactions",
-    href: "/manager/vendors",
-    icon: Store,
-  },
-];
-
 function extractArray<T>(data: unknown): T[] {
-  if (Array.isArray(data)) {
-    return data as T[];
-  }
+  if (Array.isArray(data)) return data as T[];
 
   if (
     data &&
@@ -111,7 +79,7 @@ function extractArray<T>(data: unknown): T[] {
   return [];
 }
 
-function formatCurrency(value: number | string) {
+function formatCurrency(value: number | string | undefined) {
   const amount = Number(value || 0);
 
   return new Intl.NumberFormat("en-KE", {
@@ -132,50 +100,95 @@ export default function ManagerEmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   const [search, setSearch] = useState("");
-  const [employmentFilter, setEmploymentFilter] = useState<
-    "all" | "casual" | "permanent"
-  >("all");
+  const [employmentFilter, setEmploymentFilter] = useState("all");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const modules: Module[] = useMemo(
+    () => [
+      {
+        label: "Dashboard",
+        href: "/manager/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Employees",
+        href: "/manager/employees",
+        icon: Users,
+      },
+      {
+        label: "Attendance",
+        href: "/manager/attendance",
+        icon: CalendarCheck,
+      },
+      {
+        label: "Daily Wages",
+        href: "/manager/daily-wages",
+        icon: CircleDollarSign,
+      },
+      {
+        label: "Vehicles",
+        href: "/manager/vehicles",
+        icon: Truck,
+      },
+      {
+        label: "Fuel",
+        href: "/manager/fuel",
+        icon: Fuel,
+      },
+      {
+        label: "Vendors",
+        href: "/manager/vendors",
+        icon: BriefcaseBusiness,
+      },
+    ],
+    [],
+  );
+
+  const isActive = useCallback(
+    (href: string) => {
+      if (href === "/manager/dashboard") {
+        return pathname === href;
+      }
+
+      return pathname === href || pathname.startsWith(`${href}/`);
+    },
+    [pathname],
+  );
+
+  const navigate = useCallback(
+    (href: string) => {
+      setMobileOpen(false);
+      router.push(href);
+    },
+    [router],
+  );
+
+  const handleUnauthorized = useCallback(() => {
+    router.replace("/");
+  }, [router]);
+
   const authenticatedFetch = useCallback(
-    async (endpoint: string) => {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: "GET",
+    async (url: string, options: RequestInit = {}) => {
+      const response = await fetch(url, {
+        ...options,
         credentials: "include",
         cache: "no-store",
         headers: {
           Accept: "application/json",
+          ...(options.headers || {}),
         },
       });
 
       if (response.status === 401) {
-        router.replace("/");
-        throw new Error("Your session has expired.");
+        handleUnauthorized();
+        throw new Error("Unauthorized");
       }
 
-      if (!response.ok) {
-        let message = `Request failed with status ${response.status}.`;
-
-        try {
-          const data = await response.json();
-
-          if (typeof data?.detail === "string") {
-            message = data.detail;
-          } else if (typeof data?.error === "string") {
-            message = data.error;
-          }
-        } catch {
-          // Keep default message.
-        }
-
-        throw new Error(message);
-      }
-
-      return response.json();
+      return response;
     },
-    [router]
+    [handleUnauthorized],
   );
 
   const loadEmployees = useCallback(async () => {
@@ -183,10 +196,21 @@ export default function ManagerEmployeesPage() {
     setError("");
 
     try {
-      const [meData, employeesData] = await Promise.all([
-        authenticatedFetch("/me/"),
-        authenticatedFetch("/employees/list/"),
+      const [meResponse, employeesResponse] = await Promise.all([
+        authenticatedFetch(`${API_URL}/me/`),
+        authenticatedFetch(`${API_URL}/employees/list/`),
       ]);
+
+      if (!meResponse.ok) {
+        throw new Error("Unable to load your account.");
+      }
+
+      if (!employeesResponse.ok) {
+        throw new Error("Unable to load employees.");
+      }
+
+      const meData: Me = await meResponse.json();
+      const employeesData = await employeesResponse.json();
 
       if (meData.role === "admin") {
         router.replace("/admin/dashboard");
@@ -206,11 +230,16 @@ export default function ManagerEmployeesPage() {
       setMe(meData);
       setEmployees(extractArray<Employee>(employeesData));
     } catch (err) {
-      if (err instanceof Error && err.message) {
-        setError(err.message);
-      } else {
-        setError("Unable to load employees.");
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return;
       }
+
+      console.error("Employee loading error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while loading employees.",
+      );
     } finally {
       setLoading(false);
     }
@@ -220,52 +249,75 @@ export default function ManagerEmployeesPage() {
     loadEmployees();
   }, [loadEmployees]);
 
+  /*
+   * ---------------------------------------------------------
+   * LOGOUT
+   * ---------------------------------------------------------
+   */
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await fetch(`${API_URL}/logout/`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      router.replace("/");
+    }
+  };
+
   const filteredEmployees = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const searchValue = search.trim().toLowerCase();
 
     return employees.filter((employee) => {
       const matchesSearch =
-        !query ||
-        employee.full_name.toLowerCase().includes(query) ||
-        employee.employee_id.toLowerCase().includes(query);
+        !searchValue ||
+        employee.full_name?.toLowerCase().includes(searchValue) ||
+        employee.employee_id?.toLowerCase().includes(searchValue) ||
+        employee.phone_number?.toLowerCase().includes(searchValue) ||
+        employee.national_id?.toLowerCase().includes(searchValue) ||
+        employee.position?.toLowerCase().includes(searchValue);
+
+      const employmentType =
+        employee.employment_type?.toLowerCase() || "";
 
       const matchesEmployment =
         employmentFilter === "all" ||
-        employee.employment_type.toLowerCase() === employmentFilter;
+        employmentType === employmentFilter.toLowerCase();
 
-      return matchesSearch && matchesEmployment;
+      return Boolean(matchesSearch && matchesEmployment);
     });
   }, [employees, search, employmentFilter]);
 
-  const casualCount = useMemo(
-    () =>
-      employees.filter(
-        (employee) => employee.employment_type.toLowerCase() === "casual"
-      ).length,
-    [employees]
-  );
+  const totalEmployees = employees.length;
 
-  const permanentCount = useMemo(
-    () =>
-      employees.filter(
-        (employee) => employee.employment_type.toLowerCase() === "permanent"
-      ).length,
-    [employees]
-  );
+  const casualEmployees = employees.filter(
+    (employee) =>
+      employee.employment_type?.toLowerCase() === "casual",
+  ).length;
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
+  const permanentEmployees = employees.filter(
+    (employee) =>
+      employee.employment_type?.toLowerCase() === "permanent",
+  ).length;
 
-    if (hour < 12) {
-      return "Good morning";
-    }
+  const activeEmployees = employees.filter(
+    (employee) => employee.is_active !== false,
+  ).length;
 
-    if (hour < 17) {
-      return "Good afternoon";
-    }
-
-    return "Good evening";
-  }, []);
+  const inactiveEmployees = employees.filter(
+    (employee) => employee.is_active === false,
+  ).length;
 
   const firstName =
     me?.first_name?.trim() ||
@@ -277,89 +329,35 @@ export default function ManagerEmployeesPage() {
     firstName;
 
   const initials =
-    fullName
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part.charAt(0))
-      .join("")
-      .toUpperCase() || "M";
+    `${me?.first_name?.[0] || ""}${me?.last_name?.[0] || ""}`.toUpperCase() ||
+    firstName.slice(0, 2).toUpperCase();
 
-  const navigate = (href: string) => {
-    setMobileOpen(false);
-    router.push(href);
-  };
+  const currentHour = new Date().getHours();
 
-  const isActive = (href: string) => {
-    if (href === "/manager/dashboard") {
-      return pathname === href;
-    }
+  const greeting =
+    currentHour < 12
+      ? "Good morning"
+      : currentHour < 17
+        ? "Good afternoon"
+        : "Good evening";
 
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+  const today = new Intl.DateTimeFormat("en-KE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
-  const handleLogout = async () => {
-    if (loggingOut) {
-      return;
-    }
-
-    setLoggingOut(true);
-
-    try {
-      await fetch(`${API_URL}/logout/`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-    } catch {
-      // Even if the logout request fails, leave the dashboard.
-    } finally {
-      router.replace("/");
-    }
-  };
-
-  if (loading) {
+  if (loading && !me) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-
-          <p className="mt-4 text-sm font-medium text-white">
-            Loading employees...
-          </p>
-
-          <p className="mt-1 text-xs text-slate-400">
-            Retrieving employee records
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+      <div className="min-h-screen bg-slate-50">
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+            <p className="text-sm font-medium text-slate-500">
+              Loading employees...
+            </p>
           </div>
-
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">
-            Unable to load employees
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {error}
-          </p>
-
-          <button
-            onClick={loadEmployees}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            Try again
-          </button>
         </div>
       </div>
     );
@@ -370,440 +368,570 @@ export default function ManagerEmployeesPage() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <button
+          type="button"
           aria-label="Close navigation"
-          onClick={() => setMobileOpen(false)}
           className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* -------------------------------------------------------
+          SIDEBAR
+      ------------------------------------------------------- */}
+
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 text-white transition-transform duration-300 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand */}
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white">
+        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
+          <button
+            type="button"
+            onClick={() => navigate("/manager/dashboard")}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold shadow-lg shadow-blue-600/20">
               N
             </div>
 
-            <div>
-              <p className="text-sm font-semibold tracking-wide">
+            <div className="text-left">
+              <div className="text-sm font-bold tracking-wide">
                 NYUTU LIMITED
-              </p>
+              </div>
 
-              <p className="mt-1 text-xs text-slate-400">
+              <div className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
-              </p>
+              </div>
             </div>
-          </div>
+          </button>
 
           <button
+            type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
-            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
+        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
+          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Management
           </p>
 
-          <nav className="mt-3 space-y-1">
-            <button
-              onClick={() => navigate("/manager/dashboard")}
-              className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
-                isActive("/manager/dashboard")
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <LayoutDashboard className="h-5 w-5" />
-                <span>Dashboard</span>
-              </span>
+          {modules.map((module) => {
+            const Icon = module.icon;
+            const active = isActive(module.href);
 
-              {isActive("/manager/dashboard") && (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
+            return (
+              <button
+                key={module.href}
+                type="button"
+                onClick={() => navigate(module.href)}
+                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                  active
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                }`}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
 
-            {modules.map((module) => {
-              const Icon = module.icon;
-              const active = isActive(module.href);
+                <span className="flex-1 text-left">
+                  {module.label}
+                </span>
 
-              return (
-                <button
-                  key={module.name}
-                  onClick={() => navigate(module.href)}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    active
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon className="h-5 w-5" />
-                    <span>{module.name}</span>
-                  </span>
+                {active && (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-                  {active && <ChevronRight className="h-4 w-4" />}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Profile + Sign Out */}
+        <div className="border-t border-slate-800 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
+              {initials}
+            </div>
 
-        {/* Account / Logout */}
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 rounded-xl bg-white/5 p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
-                {initials}
-              </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">
+                {fullName}
+              </p>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  {fullName}
-                </p>
-
-                <p className="truncate text-xs text-slate-500">
-                  {me?.email}
-                </p>
-
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  Manager Account
-                </p>
-              </div>
+              <p className="truncate text-xs text-slate-400">
+                Manager
+              </p>
             </div>
           </div>
 
+          {/* ACTUAL CONNECTED SIGN OUT BUTTON */}
           <button
+            type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loggingOut ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <LogOut className="h-5 w-5" />
-            )}
+            <LogOut className="h-5 w-5" />
 
-            <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
+            <span>
+              {loggingOut ? "Signing out..." : "Sign Out"}
+            </span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="lg:pl-72">
+      {/* -------------------------------------------------------
+          MAIN
+      ------------------------------------------------------- */}
+
+      <main className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          <div className="flex h-20 items-center justify-between px-5 sm:px-8">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={() => setMobileOpen(true)}
-                className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
-                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 lg:hidden"
               >
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               </button>
 
               <div>
-                <p className="text-sm font-medium text-slate-900">
-                  {greeting}, {firstName}
+                <p className="text-xs font-medium text-slate-500">
+                  {today}
                 </p>
 
-                <p className="text-xs text-slate-500">
-                  Employee Management
-                </p>
+                <h1 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
+                  {greeting}, {firstName}
+                </h1>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 sm:flex">
+              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-                <span className="text-xs font-medium text-emerald-700">
-                  System Online
-                </span>
+                System Online
               </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
                 {initials}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-200">
+        {/* Content */}
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* Welcome */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
+            <div className="relative p-6 sm:p-8">
+              <div className="relative z-10 max-w-2xl">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300 ring-1 ring-blue-500/20">
                   <Users className="h-3.5 w-3.5" />
-                  Manager Access
+                  Employee Management
                 </div>
 
-                <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Employee Management
-                </h1>
+                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  Employees
+                </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  View employee records, employment types and daily wage
-                  information available to you as manager.
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                  View and manage employee information across the
+                  organization.
+                </p>
+              </div>
+
+              <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl" />
+            </div>
+          </section>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
+              <div className="flex-1">
+                <p className="font-semibold">
+                  Unable to load employees
+                </p>
+
+                <p className="mt-1 text-sm">
+                  {error}
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={loadEmployees}
                 disabled={loading}
-                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-50"
               >
-                <Loader2
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    loading ? "animate-spin" : ""
+                  }`}
                 />
-                Refresh
+                Retry
               </button>
             </div>
+          )}
+
+          {/* Summary cards */}
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              icon={Users}
+              label="Total Employees"
+              value={totalEmployees}
+              description="All registered employees"
+            />
+
+            <SummaryCard
+              icon={UserCheck}
+              label="Active Employees"
+              value={activeEmployees}
+              description="Currently active"
+            />
+
+            <SummaryCard
+              icon={Clock3}
+              label="Casual Employees"
+              value={casualEmployees}
+              description="Casual workforce"
+            />
+
+            <SummaryCard
+              icon={BriefcaseBusiness}
+              label="Permanent Employees"
+              value={permanentEmployees}
+              description="Permanent workforce"
+            />
           </section>
 
-          {/* Summary Cards */}
-          <section className="mt-7 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-                  <Users className="h-5 w-5 text-slate-700" />
-                </div>
+          {/* Search + Filters */}
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900">
+                  Employee Directory
+                </h3>
 
-                <div>
-                  <p className="text-xs font-medium text-slate-500">
-                    Active Employees
-                  </p>
-
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                    {employees.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                  <UserRound className="h-5 w-5 text-blue-600" />
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium text-slate-500">
-                    Permanent
-                  </p>
-
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                    {permanentCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-                  <BriefcaseBusiness className="h-5 w-5 text-orange-600" />
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium text-slate-500">
-                    Casual
-                  </p>
-
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                    {casualCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Search / Filter */}
-          <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by name or employee ID..."
-                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                />
+                <p className="mt-1 text-sm text-slate-500">
+                  {filteredEmployees.length} employee
+                  {filteredEmployees.length === 1 ? "" : "s"} shown
+                </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-slate-400" />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search employees..."
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 sm:w-72"
+                  />
+                </div>
 
                 <select
                   value={employmentFilter}
                   onChange={(event) =>
-                    setEmploymentFilter(
-                      event.target.value as
-                        | "all"
-                        | "casual"
-                        | "permanent"
-                    )
+                    setEmploymentFilter(event.target.value)
                   }
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                 >
-                  <option value="all">All Employees</option>
+                  <option value="all">All Employment Types</option>
                   <option value="permanent">Permanent</option>
                   <option value="casual">Casual</option>
                 </select>
-              </div>
-            </div>
 
-            <div className="text-sm text-slate-500">
-              {filteredEmployees.length} employee
-              {filteredEmployees.length !== 1 ? "s" : ""}
+                <button
+                  type="button"
+                  onClick={loadEmployees}
+                  disabled={loading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      loading ? "animate-spin" : ""
+                    }`}
+                  />
+                  Refresh
+                </button>
+              </div>
             </div>
           </section>
 
-          {/* Employee Table */}
-          <section className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              {filteredEmployees.length === 0 ? (
-                <div className="px-6 py-16 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                    <Users className="h-5 w-5 text-slate-500" />
-                  </div>
-
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900">
-                    No employees found
+          {/* Employee table */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900">
+                    Employees
                   </h3>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    Try changing your search or employment filter.
+                  <p className="mt-1 text-xs text-slate-500">
+                    Employee records
                   </p>
                 </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium text-slate-600">
+
+                <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  {filteredEmployees.length} Records
+                </div>
+              </div>
+            </div>
+
+            {filteredEmployees.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                  <Users className="h-7 w-7 text-slate-400" />
+                </div>
+
+                <h4 className="font-semibold text-slate-900">
+                  No employees found
+                </h4>
+
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  No employee records match your current search or
+                  filter.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Employee
                       </th>
 
-                      <th className="px-4 py-3 text-left font-medium text-slate-600">
-                        Employee ID
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        ID
                       </th>
 
-                      <th className="px-4 py-3 text-left font-medium text-slate-600">
-                        Employment Type
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Contact
                       </th>
 
-                      <th className="px-4 py-3 text-right font-medium text-slate-600">
-                        Daily Wage
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Position
+                      </th>
+
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Employment
+                      </th>
+
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Status
                       </th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-slate-100">
-                    {filteredEmployees.map((employee) => (
-                      <tr
-                        key={employee.id}
-                        className="transition hover:bg-slate-50/50"
-                      >
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600">
-                              {employee.full_name
-                                .split(" ")
-                                .slice(0, 2)
-                                .map((part) => part.charAt(0))
-                                .join("")
-                                .toUpperCase()}
-                            </div>
+                    {filteredEmployees.map((employee) => {
+                      const employeeName =
+                        employee.full_name?.trim() || "Unnamed Employee";
 
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">
-                                {employee.full_name}
+                      const employmentType =
+                        employee.employment_type || "Not specified";
+
+                      const isActive =
+                        employee.is_active !== false;
+
+                      return (
+                        <tr
+                          key={employee.id}
+                          className="transition hover:bg-slate-50"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-600">
+                                {employeeName
+                                  .split(" ")
+                                  .slice(0, 2)
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .toUpperCase()}
+                              </div>
+
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {employeeName}
+                                </p>
+
+                                {employee.department && (
+                                  <p className="mt-0.5 text-xs text-slate-500">
+                                    {employee.department}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <span className="font-medium text-slate-700">
+                              {employee.employee_id || "—"}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="space-y-1">
+                              <p className="text-sm text-slate-700">
+                                {employee.phone_number || "—"}
                               </p>
+
+                              {employee.national_id && (
+                                <p className="text-xs text-slate-400">
+                                  ID: {employee.national_id}
+                                </p>
+                              )}
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-4 py-3.5 font-mono text-xs text-slate-600">
-                          {employee.employee_id}
-                        </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-slate-700">
+                              {employee.position || "—"}
+                            </span>
+                          </td>
 
-                        <td className="px-4 py-3.5">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-                              employee.employment_type.toLowerCase() ===
-                              "permanent"
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-orange-50 text-orange-700"
-                            }`}
-                          >
-                            {employee.employment_type}
-                          </span>
-                        </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                employmentType.toLowerCase() ===
+                                "casual"
+                                  ? "bg-amber-50 text-amber-700"
+                                  : employmentType.toLowerCase() ===
+                                      "permanent"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {employmentType}
+                            </span>
+                          </td>
 
-                        <td className="px-4 py-3.5 text-right font-medium text-slate-900">
-                          {formatCurrency(employee.daily_wage)}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                isActive
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  isActive
+                                    ? "bg-emerald-500"
+                                    : "bg-red-500"
+                                }`}
+                              />
+
+                              {isActive ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
-              )}
-            </div>
+              </div>
+            )}
           </section>
 
-          {/* Manager Profile */}
-          <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-                  <ShieldCheck className="h-6 w-6 text-slate-700" />
+          {/* Manager account */}
+          <section className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
+                  {initials}
                 </div>
 
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Manager Profile
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    {fullName}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Manager Account
                   </p>
 
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    {fullName}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
                     {me?.email}
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
-                Manager Account
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <UserX className="h-5 w-5 text-slate-500" />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Inactive
+                  </p>
+
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {inactiveEmployees}
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
           {/* Footer */}
-          <footer className="mt-9 border-t border-slate-200 pt-6">
-            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-
-              <p>ERP Management · Manager Access</p>
-            </div>
+          <footer className="mt-8 border-t border-slate-200 pt-6 text-center">
+            <p className="text-xs text-slate-400">
+              NYUTU LIMITED ERP MANAGEMENT
+            </p>
           </footer>
-        </main>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            {value}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </div>
   );
