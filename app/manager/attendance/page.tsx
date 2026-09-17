@@ -67,16 +67,43 @@ interface Module {
 }
 
 const modules: Module[] = [
-  { label: "Employees", href: "/manager/employees", icon: Users },
-  { label: "Attendance", href: "/manager/attendance", icon: CalendarCheck },
-  { label: "Daily Wages", href: "/manager/daily-wages", icon: CircleDollarSign },
-  { label: "Vehicles", href: "/manager/vehicles", icon: Truck },
-  { label: "Fuel", href: "/manager/fuel", icon: Fuel },
-  { label: "Vendors", href: "/manager/vendors", icon: Store },
+  {
+    label: "Employees",
+    href: "/manager/employees",
+    icon: Users,
+  },
+  {
+    label: "Attendance",
+    href: "/manager/attendance",
+    icon: CalendarCheck,
+  },
+  {
+    label: "Daily Wages",
+    href: "/manager/daily-wages",
+    icon: CircleDollarSign,
+  },
+  {
+    label: "Vehicles",
+    href: "/manager/vehicles",
+    icon: Truck,
+  },
+  {
+    label: "Fuel",
+    href: "/manager/fuel",
+    icon: Fuel,
+  },
+  {
+    label: "Vendors",
+    href: "/manager/vendors",
+    icon: Store,
+  },
 ];
 
 function extractArray<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data as T[];
+  if (Array.isArray(data)) {
+    return data as T[];
+  }
+
   if (
     data &&
     typeof data === "object" &&
@@ -85,13 +112,19 @@ function extractArray<T>(data: unknown): T[] {
   ) {
     return (data as { results: T[] }).results;
   }
+
   return [];
 }
 
 function formatDate(dateString: string) {
   if (!dateString) return "—";
+
   const date = new Date(`${dateString}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return dateString;
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
   return new Intl.DateTimeFormat("en-KE", {
     day: "numeric",
     month: "long",
@@ -101,40 +134,65 @@ function formatDate(dateString: string) {
 
 function formatTime(time?: string) {
   if (!time) return "—";
+
   const parts = time.split(":");
-  if (parts.length < 2) return time;
+
+  if (parts.length < 2) {
+    return time;
+  }
+
   const hours = Number(parts[0]);
   const minutes = parts[1];
-  if (Number.isNaN(hours)) return time;
+
+  if (Number.isNaN(hours)) {
+    return time;
+  }
+
   const suffix = hours >= 12 ? "PM" : "AM";
   const displayHour = hours % 12 || 12;
+
   return `${displayHour}:${minutes} ${suffix}`;
 }
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
+
+  if (hour < 12) {
+    return "Good morning";
+  }
+
+  if (hour < 17) {
+    return "Good afternoon";
+  }
+
   return "Good evening";
 }
 
 function getStatusBadge(status: string) {
   const statusMap: Record<
     string,
-    { color: string; icon: React.ReactNode; label: string }
+    {
+      color: string;
+      icon: React.ReactNode;
+      label: string;
+    }
   > = {
     present: {
-      color: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+      color:
+        "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
       icon: <UserCheck className="h-3.5 w-3.5" />,
       label: "Present",
     },
+
     absent: {
       color: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
       icon: <UserX className="h-3.5 w-3.5" />,
       label: "Absent",
     },
+
     unmarked: {
-      color: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
+      color:
+        "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
       icon: <Clock3 className="h-3.5 w-3.5" />,
       label: "Unmarked",
     },
@@ -157,6 +215,8 @@ export default function ManagerAttendancePage() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [me, setMe] = useState<Me | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -176,7 +236,10 @@ export default function ManagerAttendancePage() {
   };
 
   const isActive = (href: string) => {
-    if (href === "/manager/dashboard") return pathname === href;
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -185,7 +248,10 @@ export default function ManagerAttendancePage() {
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "GET",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
       });
 
       if (response.status === 401) {
@@ -195,13 +261,19 @@ export default function ManagerAttendancePage() {
 
       if (!response.ok) {
         let message = `Request failed with status ${response.status}.`;
+
         try {
           const data = await response.json();
-          if (typeof data?.detail === "string") message = data.detail;
-          else if (typeof data?.error === "string") message = data.error;
+
+          if (typeof data?.detail === "string") {
+            message = data.detail;
+          } else if (typeof data?.error === "string") {
+            message = data.error;
+          }
         } catch {
           // Keep default message.
         }
+
         throw new Error(message);
       }
 
@@ -212,26 +284,32 @@ export default function ManagerAttendancePage() {
 
   const loadAttendance = useCallback(
     async (isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       setError("");
 
       try {
-        const [meData, employeesData, attendanceData] = await Promise.all([
-          authenticatedFetch("/me/"),
-          authenticatedFetch("/employees/list/"),
-          authenticatedFetch("/attendance/today/"),
-        ]);
+        const [meData, employeesData, attendanceData] =
+          await Promise.all([
+            authenticatedFetch("/me/"),
+            authenticatedFetch("/employees/list/"),
+            authenticatedFetch("/attendance/today/"),
+          ]);
 
         if (meData.role === "admin") {
           router.replace("/admin/dashboard");
           return;
         }
+
         if (meData.role === "director") {
           router.replace("/director/dashboard");
           return;
         }
+
         if (meData.role !== "manager") {
           router.replace("/");
           return;
@@ -239,10 +317,15 @@ export default function ManagerAttendancePage() {
 
         setMe(meData);
         setEmployees(extractArray<Employee>(employeesData));
-        setAttendance(extractArray<AttendanceRecord>(attendanceData));
+        setAttendance(
+          extractArray<AttendanceRecord>(attendanceData)
+        );
       } catch (err) {
-        if (err instanceof Error && err.message) setError(err.message);
-        else setError("Unable to load attendance.");
+        if (err instanceof Error && err.message) {
+          setError(err.message);
+        } else {
+          setError("Unable to load attendance.");
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -257,13 +340,18 @@ export default function ManagerAttendancePage() {
 
   const attendanceByEmployee = useMemo(() => {
     const map = new Map<number, AttendanceRecord>();
-    attendance.forEach((record) => map.set(record.employee, record));
+
+    attendance.forEach((record) => {
+      map.set(record.employee, record);
+    });
+
     return map;
   }, [attendance]);
 
   const rows = useMemo(() => {
     return employees.map((employee) => {
       const record = attendanceByEmployee.get(employee.id);
+
       return {
         employee,
         record: record ?? null,
@@ -277,9 +365,16 @@ export default function ManagerAttendancePage() {
   }, [employees, attendanceByEmployee]);
 
   const stats = useMemo(() => {
-    const present = attendance.filter((r) => r.is_present === true).length;
-    const absent = attendance.filter((r) => r.is_present === false).length;
+    const present = attendance.filter(
+      (record) => record.is_present === true
+    ).length;
+
+    const absent = attendance.filter(
+      (record) => record.is_present === false
+    ).length;
+
     const marked = attendance.length;
+
     const unmarked = Math.max(employees.length - marked, 0);
 
     return {
@@ -293,6 +388,7 @@ export default function ManagerAttendancePage() {
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     return rows.filter(({ employee, status }) => {
       const matchesSearch =
         !query ||
@@ -314,14 +410,23 @@ export default function ManagerAttendancePage() {
     "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
 
   const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+        },
       });
     } catch {
       // Leave the page regardless of logout request failure.
@@ -337,9 +442,11 @@ export default function ManagerAttendancePage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
             <Loader2 className="h-7 w-7 animate-spin text-white" />
           </div>
+
           <h2 className="text-lg font-semibold text-slate-900">
             Loading attendance...
           </h2>
+
           <p className="mt-1 text-sm text-slate-500">
             Retrieving today&apos;s attendance records
           </p>
@@ -355,10 +462,15 @@ export default function ManagerAttendancePage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
+
           <h2 className="text-lg font-semibold text-slate-900">
             Unable to load attendance
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
           <button
             onClick={() => loadAttendance()}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
@@ -397,12 +509,16 @@ export default function ManagerAttendancePage() {
             className="flex items-center gap-3"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
-              <span className="text-lg font-black text-white">N</span>
+              <span className="text-lg font-black text-white">
+                N
+              </span>
             </div>
+
             <div className="text-left">
               <p className="text-sm font-bold tracking-wide text-white">
                 NYUTU LTD
               </p>
+
               <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
               </p>
@@ -442,7 +558,9 @@ export default function ManagerAttendancePage() {
                     : "text-slate-500 group-hover:text-slate-300"
                 }`}
               />
+
               <span className="flex-1">Dashboard</span>
+
               {isActive("/manager/dashboard") && (
                 <ChevronRight className="h-4 w-4" />
               )}
@@ -470,8 +588,12 @@ export default function ManagerAttendancePage() {
                         : "text-slate-500 group-hover:text-slate-300"
                     }`}
                   />
+
                   <span className="flex-1">{module.label}</span>
-                  {active && <ChevronRight className="h-4 w-4" />}
+
+                  {active && (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
@@ -484,15 +606,19 @@ export default function ManagerAttendancePage() {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
               {firstName.charAt(0).toUpperCase()}
             </div>
+
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
                 {fullName}
               </p>
+
               <p className="truncate text-xs text-slate-400">
                 {me?.email || "Manager"}
               </p>
+
               <div className="mt-1 flex items-center gap-1.5">
                 <ShieldCheck className="h-3 w-3 text-emerald-400" />
+
                 <span className="text-[10px] font-medium text-emerald-400">
                   Manager Account
                 </span>
@@ -503,10 +629,20 @@ export default function ManagerAttendancePage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            {loggingOut ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
+            )}
           </button>
         </div>
       </aside>
@@ -530,6 +666,7 @@ export default function ManagerAttendancePage() {
                 <p className="text-sm font-medium text-slate-500">
                   {getGreeting()}
                 </p>
+
                 <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
                   {firstName}
                 </h1>
@@ -539,6 +676,7 @@ export default function ManagerAttendancePage() {
             <div className="flex items-center gap-3">
               <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
                 <span className="text-xs font-semibold text-emerald-700">
                   System Online
                 </span>
@@ -563,8 +701,12 @@ export default function ManagerAttendancePage() {
             >
               Dashboard
             </button>
+
             <ChevronRight className="h-4 w-4 text-slate-300" />
-            <span className="font-semibold text-slate-700">Attendance</span>
+
+            <span className="font-semibold text-slate-700">
+              Attendance
+            </span>
           </div>
 
           {/* Page heading */}
@@ -575,6 +717,7 @@ export default function ManagerAttendancePage() {
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
                     <CalendarCheck className="h-5 w-5 text-blue-600" />
                   </div>
+
                   <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
                     Operations
                   </span>
@@ -585,7 +728,8 @@ export default function ManagerAttendancePage() {
                 </h2>
 
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                  View today&apos;s attendance records for all active employees.
+                  View today&apos;s attendance records for all active
+                  employees.
                 </p>
 
                 {attendanceDate && (
@@ -603,7 +747,9 @@ export default function ManagerAttendancePage() {
                 className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
                 />
                 Refresh
               </button>
@@ -618,13 +764,16 @@ export default function ManagerAttendancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Total Employees
                   </p>
+
                   <p className="mt-2 text-2xl font-black text-slate-950">
                     {stats.total}
                   </p>
+
                   <p className="mt-1 text-xs text-slate-500">
                     Active in system
                   </p>
                 </div>
+
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
                   <Users className="h-5 w-5 text-blue-600" />
                 </div>
@@ -637,13 +786,16 @@ export default function ManagerAttendancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Present
                   </p>
+
                   <p className="mt-2 text-2xl font-black text-slate-950">
                     {stats.present}
                   </p>
+
                   <p className="mt-1 text-xs text-slate-500">
                     Marked present today
                   </p>
                 </div>
+
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
                   <UserCheck className="h-5 w-5 text-emerald-600" />
                 </div>
@@ -656,13 +808,16 @@ export default function ManagerAttendancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Absent
                   </p>
+
                   <p className="mt-2 text-2xl font-black text-slate-950">
                     {stats.absent}
                   </p>
+
                   <p className="mt-1 text-xs text-slate-500">
                     Marked absent today
                   </p>
                 </div>
+
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
                   <UserX className="h-5 w-5 text-red-600" />
                 </div>
@@ -675,13 +830,16 @@ export default function ManagerAttendancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Unmarked
                   </p>
+
                   <p className="mt-2 text-2xl font-black text-slate-950">
                     {stats.unmarked}
                   </p>
+
                   <p className="mt-1 text-xs text-slate-500">
                     Awaiting attendance
                   </p>
                 </div>
+
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
                   <Clock3 className="h-5 w-5 text-amber-600" />
                 </div>
@@ -691,16 +849,17 @@ export default function ManagerAttendancePage() {
 
           {/* Attendance table */}
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {/* Table header */}
             <div className="border-b border-slate-200 p-5 sm:p-6">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
                     Daily Records
                   </p>
+
                   <h3 className="mt-1 text-lg font-bold text-slate-950">
                     Today&apos;s Attendance
                   </h3>
+
                   <p className="mt-1 text-sm text-slate-500">
                     {filteredRows.length} employee
                     {filteredRows.length === 1 ? "" : "s"} shown
@@ -710,10 +869,13 @@ export default function ManagerAttendancePage() {
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                     <input
                       type="text"
                       value={search}
-                      onChange={(event) => setSearch(event.target.value)}
+                      onChange={(event) =>
+                        setSearch(event.target.value)
+                      }
                       placeholder="Search by name or employee ID..."
                       className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-64"
                     />
@@ -721,6 +883,7 @@ export default function ManagerAttendancePage() {
 
                   <div className="relative">
                     <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                     <select
                       value={statusFilter}
                       onChange={(event) =>
@@ -744,15 +907,16 @@ export default function ManagerAttendancePage() {
               </div>
             </div>
 
-            {/* Empty state */}
             {filteredRows.length === 0 ? (
               <div className="px-6 py-16 text-center">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
                   <CalendarCheck className="h-7 w-7 text-slate-400" />
                 </div>
+
                 <h4 className="text-base font-bold text-slate-900">
                   No attendance records found
                 </h4>
+
                 <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-500">
                   Try changing your search or attendance filter.
                 </p>
@@ -767,117 +931,145 @@ export default function ManagerAttendancePage() {
                         <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Employee
                         </th>
+
                         <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Employee ID
                         </th>
+
                         <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Employment Type
                         </th>
+
                         <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Time
                         </th>
+
                         <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           Status
                         </th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100">
-                      {filteredRows.map(({ employee, record, status }) => (
-                        <tr
-                          key={employee.id}
-                          className="transition hover:bg-slate-50/70"
-                        >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
-                                {employee.full_name
-                                  .split(" ")
-                                  .slice(0, 2)
-                                  .map((part) => part.charAt(0))
-                                  .join("")
-                                  .toUpperCase()}
+                      {filteredRows.map(
+                        ({ employee, record, status }) => (
+                          <tr
+                            key={employee.id}
+                            className="transition hover:bg-slate-50/70"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
+                                  {employee.full_name
+                                    .split(" ")
+                                    .slice(0, 2)
+                                    .map((part) =>
+                                      part.charAt(0)
+                                    )
+                                    .join("")
+                                    .toUpperCase()}
+                                </div>
+
+                                <p className="text-sm font-bold text-slate-900">
+                                  {employee.full_name}
+                                </p>
                               </div>
-                              <p className="text-sm font-bold text-slate-900">
-                                {employee.full_name}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 font-mono text-xs text-slate-600">
-                            {employee.employee_id}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                                employee.employment_type.toLowerCase() ===
-                                "permanent"
-                                  ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
-                                  : "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
-                              }`}
-                            >
-                              {employee.employment_type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {record ? formatTime(record.time) : "—"}
-                          </td>
-                          <td className="px-6 py-4">
-                            {getStatusBadge(status)}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+
+                            <td className="px-6 py-4 font-mono text-xs text-slate-600">
+                              {employee.employee_id}
+                            </td>
+
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                                  employee.employment_type.toLowerCase() ===
+                                  "permanent"
+                                    ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
+                                    : "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
+                                }`}
+                              >
+                                {employee.employment_type}
+                              </span>
+                            </td>
+
+                            <td className="px-6 py-4 text-sm text-slate-600">
+                              {record
+                                ? formatTime(record.time)
+                                : "—"}
+                            </td>
+
+                            <td className="px-6 py-4">
+                              {getStatusBadge(status)}
+                            </td>
+                          </tr>
+                        )
+                      )}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Mobile cards */}
                 <div className="divide-y divide-slate-100 lg:hidden">
-                  {filteredRows.map(({ employee, record, status }) => (
-                    <div
-                      key={employee.id}
-                      className="p-5 transition hover:bg-slate-50/70 sm:p-6"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
-                            {employee.full_name
-                              .split(" ")
-                              .slice(0, 2)
-                              .map((part) => part.charAt(0))
-                              .join("")
-                              .toUpperCase()}
+                  {filteredRows.map(
+                    ({ employee, record, status }) => (
+                      <div
+                        key={employee.id}
+                        className="p-5 transition hover:bg-slate-50/70 sm:p-6"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
+                              {employee.full_name
+                                .split(" ")
+                                .slice(0, 2)
+                                .map((part) =>
+                                  part.charAt(0)
+                                )
+                                .join("")
+                                .toUpperCase()}
+                            </div>
+
+                            <div className="min-w-0">
+                              <h4 className="truncate text-sm font-bold text-slate-900">
+                                {employee.full_name}
+                              </h4>
+
+                              <p className="mt-0.5 font-mono text-xs text-slate-500">
+                                {employee.employee_id}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="truncate text-sm font-bold text-slate-900">
-                              {employee.full_name}
-                            </h4>
-                            <p className="mt-0.5 font-mono text-xs text-slate-500">
-                              {employee.employee_id}
+
+                          {getStatusBadge(status)}
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Employment
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold capitalize text-slate-700">
+                              {employee.employment_type}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Time
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-700">
+                              {record
+                                ? formatTime(record.time)
+                                : "—"}
                             </p>
                           </div>
                         </div>
-                        {getStatusBadge(status)}
                       </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Employment
-                          </p>
-                          <p className="mt-1 text-xs font-semibold capitalize text-slate-700">
-                            {employee.employment_type}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Time
-                          </p>
-                          <p className="mt-1 text-xs font-semibold text-slate-700">
-                            {record ? formatTime(record.time) : "—"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </>
             )}
@@ -889,14 +1081,17 @@ export default function ManagerAttendancePage() {
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
                 <CalendarCheck className="h-4 w-4 text-slate-600" />
               </div>
+
               <div>
                 <p className="text-sm font-bold text-slate-800">
                   Attendance is view-only
                 </p>
+
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Attendance records are maintained through the authorized
-                  attendance process. This manager view does not allow
-                  attendance records to be created, edited, or deleted.
+                  Attendance records are maintained through the
+                  authorized attendance process. This manager view
+                  does not allow attendance records to be created,
+                  edited, or deleted.
                 </p>
               </div>
             </div>
@@ -907,6 +1102,7 @@ export default function ManagerAttendancePage() {
             <p className="text-xs text-slate-400">
               Nyutu Ltd Enterprise Management System
             </p>
+
             <p className="mt-1 text-[10px] text-slate-400">
               Secure operations management
             </p>
