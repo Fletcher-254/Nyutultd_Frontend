@@ -21,18 +21,13 @@ import {
   AlertCircle,
   Search,
   Filter,
-  ChevronLeft,
   BriefcaseBusiness,
-  User,
-  ArrowLeft,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
+  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
 type Role = "admin" | "manager" | "director";
@@ -40,6 +35,8 @@ type Role = "admin" | "manager" | "director";
 interface Me {
   id: number;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
   role: Role;
 }
 
@@ -129,8 +126,11 @@ export default function ManagerEmployeesPage() {
   const pathname = usePathname();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [me, setMe] = useState<Me | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+
   const [search, setSearch] = useState("");
   const [employmentFilter, setEmploymentFilter] = useState<
     "all" | "casual" | "permanent"
@@ -144,6 +144,7 @@ export default function ManagerEmployeesPage() {
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "GET",
         credentials: "include",
+        cache: "no-store",
         headers: {
           Accept: "application/json",
         },
@@ -252,14 +253,58 @@ export default function ManagerEmployeesPage() {
     [employees]
   );
 
-  const greeting = (() => {
+  const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
+
+    if (hour < 12) {
+      return "Good morning";
+    }
+
+    if (hour < 17) {
+      return "Good afternoon";
+    }
+
     return "Good evening";
-  })();
+  }, []);
+
+  const firstName =
+    me?.first_name?.trim() ||
+    me?.email?.split("@")[0] ||
+    "Manager";
+
+  const fullName =
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
+
+  const initials =
+    fullName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join("")
+      .toUpperCase() || "M";
+
+  const navigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
@@ -269,7 +314,7 @@ export default function ManagerEmployeesPage() {
         },
       });
     } catch {
-      // Leave the page regardless of logout request failure.
+      // Even if the logout request fails, leave the dashboard.
     } finally {
       router.replace("/");
     }
@@ -277,11 +322,17 @@ export default function ManagerEmployeesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-          <p className="mt-4 text-sm font-medium text-white">Loading employees...</p>
-          <p className="mt-1 text-xs text-slate-400">Retrieving employee records</p>
+
+          <p className="mt-4 text-sm font-medium text-white">
+            Loading employees...
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Retrieving employee records
+          </p>
         </div>
       </div>
     );
@@ -289,15 +340,20 @@ export default function ManagerEmployeesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
             <AlertCircle className="h-6 w-6 text-red-600" />
           </div>
+
           <h1 className="mt-5 text-lg font-semibold text-slate-900">
             Unable to load employees
           </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
           <button
             onClick={loadEmployees}
             className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
@@ -326,19 +382,34 @@ export default function ManagerEmployeesPage() {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
+        {/* Brand */}
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-wide">NYUTU LIMITED</p>
-            <p className="mt-1 text-xs text-slate-400">Management Portal</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white">
+              N
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold tracking-wide">
+                NYUTU LIMITED
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                ERP MANAGEMENT
+              </p>
+            </div>
           </div>
+
           <button
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close navigation"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {/* Navigation */}
         <div className="flex-1 px-4 py-6">
           <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
             Navigation
@@ -346,56 +417,85 @@ export default function ManagerEmployeesPage() {
 
           <nav className="mt-3 space-y-1">
             <button
-              onClick={() => router.push("/manager/dashboard")}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+              onClick={() => navigate("/manager/dashboard")}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
+                isActive("/manager/dashboard")
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <span className="flex items-center gap-3">
+                <LayoutDashboard className="h-5 w-5" />
+                <span>Dashboard</span>
+              </span>
+
+              {isActive("/manager/dashboard") && (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const isActive = pathname === module.href;
+              const active = isActive(module.href);
 
               return (
                 <button
                   key={module.name}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-white/10 text-white"
+                  onClick={() => navigate(module.href)}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-sm"
                       : "text-slate-400 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{module.name}</span>
+                  <span className="flex items-center gap-3">
+                    <Icon className="h-5 w-5" />
+                    <span>{module.name}</span>
+                  </span>
+
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
+        {/* Account / Logout */}
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-xl bg-white/5 p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <ShieldCheck className="h-5 w-5 text-slate-300" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                {initials}
               </div>
+
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Manager</p>
-                <p className="truncate text-xs text-slate-500">{me?.email}</p>
+                <p className="truncate text-sm font-medium text-white">
+                  {fullName}
+                </p>
+
+                <p className="truncate text-xs text-slate-500">
+                  {me?.email}
+                </p>
+
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Manager Account
+                </p>
               </div>
             </div>
           </div>
+
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Sign out</span>
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+
+            <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
           </button>
         </div>
       </aside>
@@ -405,25 +505,37 @@ export default function ManagerEmployeesPage() {
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
           <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+                aria-label="Open navigation"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">Employees</p>
-              <p className="text-xs text-slate-500">Employee directory</p>
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  {greeting}, {firstName}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  Employee Management
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">{me?.email}</p>
-                <p className="text-xs text-slate-500">Manager</p>
+              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                <span className="text-xs font-medium text-emerald-700">
+                  System Online
+                </span>
               </div>
+
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {me?.email?.charAt(0).toUpperCase() || "M"}
+                {initials}
               </div>
             </div>
           </div>
@@ -434,17 +546,24 @@ export default function ManagerEmployeesPage() {
           <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-400">{greeting}</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-200">
+                  <Users className="h-3.5 w-3.5" />
+                  Manager Access
+                </div>
+
+                <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
                   Employee Management
                 </h1>
+
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  View and manage all active employee records.
+                  View employee records, employment types and daily wage
+                  information available to you as manager.
                 </p>
               </div>
+
               <button
                 onClick={loadEmployees}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
+                className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
               >
                 <Loader2 className="h-4 w-4" />
                 Refresh
@@ -453,15 +572,19 @@ export default function ManagerEmployeesPage() {
           </section>
 
           {/* Summary Cards */}
-          <section className="mt-6 grid gap-4 sm:grid-cols-3">
+          <section className="mt-7 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
                   <Users className="h-5 w-5 text-slate-700" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Active Employees</p>
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="text-xs font-medium text-slate-500">
+                    Active Employees
+                  </p>
+
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                     {employees.length}
                   </p>
                 </div>
@@ -470,12 +593,16 @@ export default function ManagerEmployeesPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-blue-50 p-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
                   <UserRound className="h-5 w-5 text-blue-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Permanent</p>
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="text-xs font-medium text-slate-500">
+                    Permanent
+                  </p>
+
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                     {permanentCount}
                   </p>
                 </div>
@@ -484,12 +611,16 @@ export default function ManagerEmployeesPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-orange-50 p-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
                   <BriefcaseBusiness className="h-5 w-5 text-orange-600" />
                 </div>
+
                 <div>
-                  <p className="text-xs text-slate-500">Casual</p>
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="text-xs font-medium text-slate-500">
+                    Casual
+                  </p>
+
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                     {casualCount}
                   </p>
                 </div>
@@ -498,29 +629,34 @@ export default function ManagerEmployeesPage() {
           </section>
 
           {/* Search / Filter */}
-          <section className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                 <input
                   type="text"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search by name or employee ID..."
-                  className="w-full rounded-lg border border-slate-200 pl-9 pr-4 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 />
               </div>
 
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-slate-400" />
+
                 <select
                   value={employmentFilter}
                   onChange={(event) =>
                     setEmploymentFilter(
-                      event.target.value as "all" | "casual" | "permanent"
+                      event.target.value as
+                        | "all"
+                        | "casual"
+                        | "permanent"
                     )
                   }
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 >
                   <option value="all">All Employees</option>
                   <option value="permanent">Permanent</option>
@@ -536,16 +672,18 @@ export default function ManagerEmployeesPage() {
           </section>
 
           {/* Employee Table */}
-          <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <section className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
               {filteredEmployees.length === 0 ? (
                 <div className="px-6 py-16 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                     <Users className="h-5 w-5 text-slate-500" />
                   </div>
+
                   <h3 className="mt-4 text-sm font-semibold text-slate-900">
                     No employees found
                   </h3>
+
                   <p className="mt-1 text-sm text-slate-500">
                     Try changing your search or employment filter.
                   </p>
@@ -557,17 +695,21 @@ export default function ManagerEmployeesPage() {
                       <th className="px-4 py-3 text-left font-medium text-slate-600">
                         Employee
                       </th>
+
                       <th className="px-4 py-3 text-left font-medium text-slate-600">
                         Employee ID
                       </th>
+
                       <th className="px-4 py-3 text-left font-medium text-slate-600">
                         Employment Type
                       </th>
+
                       <th className="px-4 py-3 text-right font-medium text-slate-600">
                         Daily Wage
                       </th>
                     </tr>
                   </thead>
+
                   <tbody className="divide-y divide-slate-100">
                     {filteredEmployees.map((employee) => (
                       <tr
@@ -584,6 +726,7 @@ export default function ManagerEmployeesPage() {
                                 .join("")
                                 .toUpperCase()}
                             </div>
+
                             <div>
                               <p className="text-sm font-medium text-slate-900">
                                 {employee.full_name}
@@ -591,13 +734,16 @@ export default function ManagerEmployeesPage() {
                             </div>
                           </div>
                         </td>
+
                         <td className="px-4 py-3.5 font-mono text-xs text-slate-600">
                           {employee.employee_id}
                         </td>
+
                         <td className="px-4 py-3.5">
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-                              employee.employment_type.toLowerCase() === "permanent"
+                              employee.employment_type.toLowerCase() ===
+                              "permanent"
                                 ? "bg-blue-50 text-blue-700"
                                 : "bg-orange-50 text-orange-700"
                             }`}
@@ -605,6 +751,7 @@ export default function ManagerEmployeesPage() {
                             {employee.employment_type}
                           </span>
                         </td>
+
                         <td className="px-4 py-3.5 text-right font-medium text-slate-900">
                           {formatCurrency(employee.daily_wage)}
                         </td>
@@ -616,11 +763,41 @@ export default function ManagerEmployeesPage() {
             </div>
           </section>
 
+          {/* Manager Profile */}
+          <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
+                  <ShieldCheck className="h-6 w-6 text-slate-700" />
+                </div>
+
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Manager Profile
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {fullName}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {me?.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+                Manager Account
+              </div>
+            </div>
+          </section>
+
           {/* Footer */}
           <footer className="mt-9 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
               <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
-              <p>Management Portal · Manager Access</p>
+
+              <p>ERP Management · Manager Access</p>
             </div>
           </footer>
         </main>
