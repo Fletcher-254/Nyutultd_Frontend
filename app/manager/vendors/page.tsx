@@ -102,6 +102,12 @@ const modules: Module[] = [
     icon: Truck,
   },
   {
+    label: "Expenses",
+    href: "/manager/expenses",
+    icon: Receipt,
+  },
+
+  {
     label: "Fuel",
     href: "/manager/fuel",
     icon: Fuel,
