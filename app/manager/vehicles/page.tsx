@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,211 +17,279 @@ import {
   Menu,
   X,
   ChevronRight,
+  Loader2,
   ShieldCheck,
   Search,
   RefreshCw,
   AlertTriangle,
+  CheckCircle,
   Plus,
   Pencil,
   Trash2,
   Eye,
-  TrendingUp,
-  TrendingDown,
   Gauge,
   AlertCircle,
 } from "lucide-react";
 
+// ============================================================
+// TYPES
+// ============================================================
+
 interface UserProfile {
   id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
   role?: string;
 }
 
 interface Vehicle {
   id: number;
-  asset_identifier: string;
-  assigned_operator: string | null;
-  opening_odometer_reading: number;
-  closing_odometer_reading: number | null;
-  remarks: string | null;
-  created_at: string;
+  registration_number: string;
+  make?: string;
+  model?: string;
+  vehicle_type?: string;
+  year?: number;
+  opening_odometer?: number | string | null;
+  closing_odometer?: number | string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface VehicleFormData {
-  asset_identifier: string;
-  assigned_operator: string;
-  opening_odometer_reading: string;
-  closing_odometer_reading: string;
-  remarks: string;
+  registration_number: string;
+  make: string;
+  model: string;
+  vehicle_type: string;
+  year: string;
+  opening_odometer: string;
+  closing_odometer: string;
 }
 
 const EMPTY_FORM: VehicleFormData = {
-  asset_identifier: "",
-  assigned_operator: "",
-  opening_odometer_reading: "",
-  closing_odometer_reading: "",
-  remarks: "",
+  registration_number: "",
+  make: "",
+  model: "",
+  vehicle_type: "",
+  year: "",
+  opening_odometer: "",
+  closing_odometer: "",
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not configured.");
-}
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export default function ManagerVehiclesPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [today, setToday] = useState("");
-  const [greeting, setGreeting] = useState("");
-
-  const menu = useMemo(
-    () => [
-      { label: "Dashboard", icon: LayoutDashboard, path: "/manager/dashboard" },
-      { label: "Employees", icon: Users, path: "/manager/employees" },
-      { label: "Attendance", icon: CalendarCheck, path: "/manager/attendance" },
-      { label: "Daily Wages", icon: CircleDollarSign, path: "/manager/daily-wages" },
-      { label: "Vehicles", icon: Truck, path: "/manager/vehicles" },
-      { label: "Fuel", icon: Fuel, path: "/manager/fuel" },
-      { label: "Vendors", icon: Store, path: "/manager/vendors" },
-      { label: "Expenses", icon: Receipt, path: "/manager/expenses" },
-    ],
-    []
-  );
-
-  const isActive = (path: string) => {
-    if (path === "/manager/dashboard") {
-      return pathname === "/manager/dashboard";
-    }
-    return pathname === path || pathname.startsWith(`${path}/`);
-  };
-
-  const navigate = (path: string) => {
-    setSidebarOpen(false);
-    router.push(path);
-  };
+  // ----------------------------------------------------------
+  // STATE
+  // ----------------------------------------------------------
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const [search, setSearch] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [showModal, setShowModal] = useState(false);
-  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<VehicleFormData>(EMPTY_FORM);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [modalMode, setModalMode] =
+    useState<"create" | "edit">("create");
 
-  const handleUnauthorized = useCallback(() => {
-    router.replace("/");
-  }, [router]);
+  const [selectedVehicle, setSelectedVehicle] =
+    useState<Vehicle | null>(null);
+
+  const [viewVehicle, setViewVehicle] =
+    useState<Vehicle | null>(null);
+
+  const [form, setForm] =
+    useState<VehicleFormData>(EMPTY_FORM);
+
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] =
+    useState<number | null>(null);
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  // ----------------------------------------------------------
+  // MENU
+  // ----------------------------------------------------------
+
+  const menuItems = [
+    {
+      label: "Dashboard",
+      href: "/manager/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Employees",
+      href: "/manager/employees",
+      icon: Users,
+    },
+    {
+      label: "Attendance",
+      href: "/manager/attendance",
+      icon: CalendarCheck,
+    },
+    {
+      label: "Daily Wages",
+      href: "/manager/daily-wages",
+      icon: CircleDollarSign,
+    },
+    {
+      label: "Vehicles",
+      href: "/manager/vehicles",
+      icon: Truck,
+    },
+    {
+      label: "Fuel",
+      href: "/manager/fuel",
+      icon: Fuel,
+    },
+    {
+      label: "Vendors",
+      href: "/manager/vendors",
+      icon: Store,
+    },
+    {
+      label: "Expenses",
+      href: "/manager/expenses",
+      icon: Receipt,
+    },
+  ];
+
+  // ----------------------------------------------------------
+  // NAVIGATION
+  // ----------------------------------------------------------
+
+  const navigate = (href: string) => {
+    setMobileMenuOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
+  };
+
+  // ----------------------------------------------------------
+  // FETCH HELPER
+  // ----------------------------------------------------------
 
   const authenticatedFetch = useCallback(
-    async (url: string, options: RequestInit = {}): Promise<Response | null> => {
-      try {
-        const response = await fetch(url, {
-          ...options,
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (response.status === 401) {
-          handleUnauthorized();
-          return null;
-        }
-        return response;
-      } catch (error) {
-        console.error("Authenticated request failed:", error);
-        throw error;
+    async (url: string, options: RequestInit = {}) => {
+      const response = await fetch(url, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+        cache: "no-store",
+      });
+
+      if (
+        response.status === 401 ||
+        response.status === 403
+      ) {
+        router.push("/login");
+        throw new Error("Unauthorized");
       }
+
+      return response;
     },
-    [handleUnauthorized]
+    [router]
   );
 
+  // ----------------------------------------------------------
+  // LOAD USER + VEHICLES
+  // ----------------------------------------------------------
+
   const loadVehiclesPage = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setRefreshing(false);
-
     try {
-      const meResponse = await authenticatedFetch(`${API_URL}/me/`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
+      setError("");
 
-      if (!meResponse) return;
+      const meResponse =
+        await authenticatedFetch(`${API_URL}/me/`);
 
       if (!meResponse.ok) {
-        throw new Error("Unable to authenticate user.");
-      }
-
-      const userData: UserProfile = await meResponse.json();
-
-      const role = userData.role?.trim().toLowerCase();
-
-      if (role === "admin") {
-        router.replace("/admin/dashboard");
-        return;
-      }
-
-      if (role === "director") {
-        router.replace("/director/dashboard");
-        return;
-      }
-
-      setUser(userData);
-
-      const now = new Date();
-      const hour = now.getHours();
-      if (hour < 12) setGreeting("Good morning");
-      else if (hour < 17) setGreeting("Good afternoon");
-      else setGreeting("Good evening");
-
-      setToday(
-        new Intl.DateTimeFormat("en-KE", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now)
-      );
-
-      const vehiclesResponse = await authenticatedFetch(`${API_URL}/vehicles/`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-
-      if (!vehiclesResponse) return;
-
-      if (!vehiclesResponse.ok) {
         throw new Error(
-          `Failed to load vehicles. Server returned ${vehiclesResponse.status}.`
+          "Unable to load your profile."
         );
       }
 
-      const data = await vehiclesResponse.json();
-      const vehicleList = Array.isArray(data)
-        ? data
-        : Array.isArray(data.results)
-        ? data.results
-        : [];
+      const meData = await meResponse.json();
 
-      setVehicles(vehicleList);
-    } catch (err: unknown) {
-      console.error("Vehicles page error:", err);
-      const message =
+      setUser(meData);
+
+      if (meData.role !== "manager") {
+        if (meData.role === "admin") {
+          router.push("/admin/dashboard");
+        } else if (meData.role === "director") {
+          router.push("/director/dashboard");
+        } else {
+          router.push("/login");
+        }
+
+        return;
+      }
+
+      const vehiclesResponse =
+        await authenticatedFetch(
+          `${API_URL}/vehicles/`
+        );
+
+      if (!vehiclesResponse.ok) {
+        throw new Error(
+          "Unable to load vehicles."
+        );
+      }
+
+      const vehiclesData =
+        await vehiclesResponse.json();
+
+      if (Array.isArray(vehiclesData)) {
+        setVehicles(vehiclesData);
+      } else if (
+        Array.isArray(vehiclesData.results)
+      ) {
+        setVehicles(vehiclesData.results);
+      } else {
+        setVehicles([]);
+      }
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message === "Unauthorized"
+      ) {
+        return;
+      }
+
+      console.error(err);
+
+      setError(
         err instanceof Error
           ? err.message
-          : "Something went wrong while loading vehicles.";
-      setError(message);
+          : "Something went wrong while loading vehicles."
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -231,301 +300,498 @@ export default function ManagerVehiclesPage() {
     loadVehiclesPage();
   }, [loadVehiclesPage]);
 
-  async function refreshPage() {
+  // ----------------------------------------------------------
+  // REFRESH
+  // ----------------------------------------------------------
+
+  const refreshPage = async () => {
     setRefreshing(true);
     await loadVehiclesPage();
-  }
+  };
 
-  const logout = async () => {
-    if (loggingOut) return;
-    setLoggingOut(true);
+  // ----------------------------------------------------------
+  // LOGOUT
+  // ----------------------------------------------------------
 
+  const handleLogout = async () => {
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
-        headers: { Accept: "application/json" },
         credentials: "include",
       });
-    } catch (error) {
-      console.error("Logout request failed:", error);
+    } catch (err) {
+      console.error("Logout error:", err);
     } finally {
-      router.replace("/");
+      router.push("/login");
     }
   };
 
-  function resetForm() {
+  // ----------------------------------------------------------
+  // FORM
+  // ----------------------------------------------------------
+
+  const resetForm = () => {
     setForm(EMPTY_FORM);
-    setEditingVehicle(null);
-  }
+    setSelectedVehicle(null);
+  };
 
-  function openCreateModal() {
+  const openCreateModal = () => {
     resetForm();
-    setError("");
-    setSuccess("");
+    setModalMode("create");
     setShowModal(true);
-  }
+  };
 
-  function openEditModal(vehicle: Vehicle) {
-    setEditingVehicle(vehicle);
+  const openEditModal = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setModalMode("edit");
+
     setForm({
-      asset_identifier: vehicle.asset_identifier,
-      assigned_operator: vehicle.assigned_operator || "",
-      opening_odometer_reading: String(vehicle.opening_odometer_reading),
-      closing_odometer_reading:
-        vehicle.closing_odometer_reading !== null
-          ? String(vehicle.closing_odometer_reading)
+      registration_number:
+        vehicle.registration_number || "",
+      make: vehicle.make || "",
+      model: vehicle.model || "",
+      vehicle_type:
+        vehicle.vehicle_type || "",
+      year: vehicle.year
+        ? String(vehicle.year)
+        : "",
+      opening_odometer:
+        vehicle.opening_odometer !== null &&
+        vehicle.opening_odometer !== undefined
+          ? String(vehicle.opening_odometer)
           : "",
-      remarks: vehicle.remarks || "",
+      closing_odometer:
+        vehicle.closing_odometer !== null &&
+        vehicle.closing_odometer !== undefined
+          ? String(vehicle.closing_odometer)
+          : "",
     });
-    setError("");
-    setSuccess("");
-    setShowModal(true);
-  }
 
-  function closeModal() {
-    if (submitting) return;
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
     setShowModal(false);
     resetForm();
-  }
+  };
 
-  function handleInputChange(field: keyof VehicleFormData, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
+  const updateForm = (
+    field: keyof VehicleFormData,
+    value: string
+  ) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
 
-  async function saveVehicle() {
-    if (!form.asset_identifier.trim()) {
-      alert("Asset identifier is required.");
+  // ----------------------------------------------------------
+  // SAVE VEHICLE
+  // ----------------------------------------------------------
+
+  const saveVehicle = async () => {
+    if (!form.registration_number.trim()) {
+      setError(
+        "Vehicle registration number is required."
+      );
       return;
     }
-
-    if (!form.opening_odometer_reading || Number(form.opening_odometer_reading) < 0) {
-      alert("Opening odometer reading must be 0 or greater.");
-      return;
-    }
-
-    const opening = Number(form.opening_odometer_reading);
-    const closing = form.closing_odometer_reading
-      ? Number(form.closing_odometer_reading)
-      : null;
-
-    if (closing !== null && closing < opening) {
-      alert("Closing odometer reading cannot be less than opening reading.");
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
 
     try {
-      const isEditing = editingVehicle !== null;
-      const url = isEditing
-        ? `${API_URL}/vehicles/${editingVehicle.id}/update/`
-        : `${API_URL}/vehicles/create/`;
+      setSaving(true);
+      setError("");
 
       const payload = {
-        asset_identifier: form.asset_identifier.trim(),
-        assigned_operator: form.assigned_operator.trim() || null,
-        opening_odometer_reading: opening,
-        closing_odometer_reading: closing,
-        remarks: form.remarks.trim() || null,
+        registration_number:
+          form.registration_number.trim(),
+        make: form.make.trim(),
+        model: form.model.trim(),
+        vehicle_type:
+          form.vehicle_type.trim(),
+        year: form.year
+          ? Number(form.year)
+          : null,
+        opening_odometer:
+          form.opening_odometer
+            ? Number(form.opening_odometer)
+            : null,
+        closing_odometer:
+          form.closing_odometer
+            ? Number(form.closing_odometer)
+            : null,
       };
 
-      const response = await authenticatedFetch(url, {
-        method: isEditing ? "PATCH" : "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const url =
+        modalMode === "edit" &&
+        selectedVehicle
+          ? `${API_URL}/vehicles/${selectedVehicle.id}/`
+          : `${API_URL}/vehicles/`;
 
-      if (!response) return;
+      const method =
+        modalMode === "edit"
+          ? "PUT"
+          : "POST";
 
-      const responseText = await response.text();
+      const response =
+        await authenticatedFetch(url, {
+          method,
+          body: JSON.stringify(payload),
+        });
 
       if (!response.ok) {
-        let message = `Failed to save vehicle. Server returned ${response.status}.`;
+        let message =
+          "Unable to save vehicle.";
+
         try {
-          const data = JSON.parse(responseText);
-          if (data.detail) message = data.detail;
-          else if (data.error) message = data.error;
-          else if (typeof data === "object" && data !== null) {
-            const firstError = Object.values(data)[0];
-            if (Array.isArray(firstError)) message = String(firstError[0]);
-            else if (firstError) message = String(firstError);
+          const data =
+            await response.json();
+
+          if (typeof data === "object") {
+            const firstError =
+              Object.values(data)[0];
+
+            if (Array.isArray(firstError)) {
+              message = String(firstError[0]);
+            } else if (
+              typeof firstError === "string"
+            ) {
+              message = firstError;
+            }
           }
         } catch {
-          // Keep default error message.
+          // Keep default error.
         }
-        alert(message);
-        return;
+
+        throw new Error(message);
       }
 
-      const savedVehicle: Vehicle = JSON.parse(responseText);
+      closeModal();
 
-      if (isEditing) {
-        setVehicles((previous) =>
-          previous.map((vehicle) =>
-            vehicle.id === savedVehicle.id ? savedVehicle : vehicle
-          )
-        );
-      } else {
-        setVehicles((previous) => [savedVehicle, ...previous]);
-      }
-
-      setSuccess(
-        isEditing
+      setSuccessMessage(
+        modalMode === "edit"
           ? "Vehicle updated successfully."
           : "Vehicle registered successfully."
       );
-      closeModal();
 
-      setTimeout(() => setSuccess(""), 3000);
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 4000);
+
+      await loadVehiclesPage();
     } catch (err) {
-      console.error("Vehicle save error:", err);
-      alert("Something went wrong while saving the vehicle.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+      console.error(err);
 
-  async function deleteVehicle(vehicle: Vehicle) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to save vehicle."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ----------------------------------------------------------
+  // DELETE VEHICLE
+  // ----------------------------------------------------------
+
+  const deleteVehicle = async (
+    vehicle: Vehicle
+  ) => {
     const confirmed = window.confirm(
-      `Delete vehicle "${vehicle.asset_identifier}"? This cannot be undone.`
+      `Are you sure you want to delete ${vehicle.registration_number}?`
     );
-    if (!confirmed) return;
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
-      const response = await authenticatedFetch(
-        `${API_URL}/vehicles/${vehicle.id}/delete/`,
-        {
-          method: "DELETE",
-          headers: { Accept: "application/json" },
-        }
-      );
+      setDeleting(vehicle.id);
+      setError("");
 
-      if (!response) return;
+      const response =
+        await authenticatedFetch(
+          `${API_URL}/vehicles/${vehicle.id}/`,
+          {
+            method: "DELETE",
+          }
+        );
 
       if (!response.ok) {
-        let message = `Failed to delete vehicle. Server returned ${response.status}.`;
-        try {
-          const data = await response.json();
-          message = data.detail || data.error || message;
-        } catch {
-          // Keep default error message.
-        }
-        alert(message);
-        return;
+        throw new Error(
+          "Unable to delete vehicle."
+        );
       }
 
-      setVehicles((previous) => previous.filter((item) => item.id !== vehicle.id));
-      setSuccess("Vehicle deleted successfully.");
-      setTimeout(() => setSuccess(""), 3000);
+      setSuccessMessage(
+        "Vehicle deleted successfully."
+      );
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 4000);
+
+      await loadVehiclesPage();
     } catch (err) {
-      console.error("Vehicle delete error:", err);
-      alert("Something went wrong while deleting the vehicle.");
+      console.error(err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to delete vehicle."
+      );
+    } finally {
+      setDeleting(null);
     }
-  }
+  };
+
+  // ----------------------------------------------------------
+  // SEARCH
+  // ----------------------------------------------------------
 
   const filteredVehicles = useMemo(() => {
-    const searchTerm = search.trim().toLowerCase();
-    if (!searchTerm) return vehicles;
+    const query =
+      searchTerm.trim().toLowerCase();
 
-    return vehicles.filter(
-      (vehicle) =>
-        vehicle.asset_identifier.toLowerCase().includes(searchTerm) ||
-        (vehicle.assigned_operator || "").toLowerCase().includes(searchTerm) ||
-        (vehicle.remarks || "").toLowerCase().includes(searchTerm)
-    );
-  }, [vehicles, search]);
+    if (!query) {
+      return vehicles;
+    }
+
+    return vehicles.filter((vehicle) => {
+      return (
+        vehicle.registration_number
+          ?.toLowerCase()
+          .includes(query) ||
+        vehicle.make
+          ?.toLowerCase()
+          .includes(query) ||
+        vehicle.model
+          ?.toLowerCase()
+          .includes(query) ||
+        vehicle.vehicle_type
+          ?.toLowerCase()
+          .includes(query)
+      );
+    });
+  }, [vehicles, searchTerm]);
+
+  // ----------------------------------------------------------
+  // STATS
+  // ----------------------------------------------------------
 
   const totalVehicles = vehicles.length;
-  const vehiclesWithClosing = vehicles.filter(
-    (v) => v.closing_odometer_reading !== null
-  ).length;
-  const vehiclesWithoutClosing = vehicles.filter(
-    (v) => v.closing_odometer_reading === null
-  ).length;
 
-  const averageOpening = useMemo(() => {
-    if (vehicles.length === 0) return 0;
-    const total = vehicles.reduce((sum, v) => sum + v.opening_odometer_reading, 0);
-    return total / vehicles.length;
-  }, [vehicles]);
+  const vehiclesWithClosingReading =
+    vehicles.filter(
+      (vehicle) =>
+        vehicle.closing_odometer !== null &&
+        vehicle.closing_odometer !== undefined &&
+        vehicle.closing_odometer !== ""
+    ).length;
 
-  function formatNumber(value: number | null) {
-    if (value === null) return "—";
-    return value.toLocaleString("en-KE", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-  }
+  const vehiclesWithoutClosingReading =
+    totalVehicles -
+    vehiclesWithClosingReading;
 
-  function formatDate(value: string | null) {
-    if (!value) return "—";
+  const averageOpeningOdometer =
+    totalVehicles > 0
+      ? vehicles.reduce(
+          (sum, vehicle) => {
+            const value = Number(
+              vehicle.opening_odometer || 0
+            );
+
+            return sum + value;
+          },
+          0
+        ) / totalVehicles
+      : 0;
+
+  // ----------------------------------------------------------
+  // FORMATTING
+  // ----------------------------------------------------------
+
+  const formatNumber = (
+    value:
+      | number
+      | string
+      | null
+      | undefined
+  ) => {
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
+      return "—";
+    }
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+      return String(value);
+    }
+
+    return new Intl.NumberFormat(
+      "en-KE"
+    ).format(number);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) {
+      return "—";
+    }
+
     const date = new Date(value);
-    if (isNaN(date.getTime())) return value;
-    return date.toLocaleDateString("en-KE", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  }
+
+    if (Number.isNaN(date.getTime())) {
+      return "—";
+    }
+
+    return date.toLocaleDateString(
+      "en-KE",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+  const greeting = (() => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) {
+      return "Good morning";
+    }
+
+    if (hour < 17) {
+      return "Good afternoon";
+    }
+
+    return "Good evening";
+  })();
 
   const firstName =
-    user?.first_name?.trim() || user?.email?.split("@")[0] || "Manager";
+    user?.first_name?.trim() ||
+    user?.username ||
+    "Manager";
 
   const fullName =
-    `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || firstName;
+    [
+      user?.first_name,
+      user?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    user?.username ||
+    "Manager";
 
-  const initials =
-    `${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`.toUpperCase() ||
-    firstName.slice(0, 2).toUpperCase();
+  // ============================================================
+  // LOADING
+  // ============================================================
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
-            <RefreshCw className="h-7 w-7 animate-spin text-white" />
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
           </div>
 
           <h2 className="text-lg font-semibold text-slate-900">
             Loading vehicles...
           </h2>
 
-          <p className="mt-1 text-sm text-slate-500">Retrieving fleet data</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Verifying secure access
+          </p>
         </div>
       </div>
     );
   }
 
+  // ============================================================
+  // FULL PAGE ERROR
+  // ============================================================
+
+  if (error && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-600" />
+          </div>
+
+          <h2 className="text-lg font-semibold text-slate-900">
+            Unable to load vehicles
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={loadVehiclesPage}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // MAIN UI
+  // ============================================================
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      {sidebarOpen && (
+
+      {/* ======================================================
+          MOBILE OVERLAY
+      ====================================================== */}
+
+      {mobileMenuOpen && (
         <button
           type="button"
           aria-label="Close navigation"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() =>
+            setMobileMenuOpen(false)
+          }
           className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
         />
       )}
 
-      {/* Sidebar */}
+      {/* ======================================================
+          SIDEBAR
+      ====================================================== */}
+
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          mobileMenuOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
+        {/* BRAND */}
+
         <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
             type="button"
-            onClick={() => navigate("/manager/dashboard")}
+            onClick={() =>
+              navigate("/manager/dashboard")
+            }
             className="flex items-center gap-3"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
-              <span className="text-lg font-black text-white">N</span>
+              <span className="text-lg font-black text-white">
+                N
+              </span>
             </div>
 
             <div className="text-left">
@@ -541,7 +807,9 @@ export default function ManagerVehiclesPage() {
 
           <button
             type="button"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() =>
+              setMobileMenuOpen(false)
+            }
             aria-label="Close navigation"
             className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
@@ -549,21 +817,26 @@ export default function ManagerVehiclesPage() {
           </button>
         </div>
 
+        {/* NAVIGATION */}
+
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
           <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
             Main Menu
           </div>
 
           <nav className="space-y-1.5">
-            {menu.map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
-              const active = isActive(item.path);
+              const active =
+                isActive(item.href);
 
               return (
                 <button
-                  key={item.label}
+                  key={item.href}
                   type="button"
-                  onClick={() => navigate(item.path)}
+                  onClick={() =>
+                    navigate(item.href)
+                  }
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
                     active
                       ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
@@ -578,19 +851,27 @@ export default function ManagerVehiclesPage() {
                     }`}
                   />
 
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">
+                    {item.label}
+                  </span>
 
-                  {active && <ChevronRight className="h-4 w-4" />}
+                  {active && (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
 
+        {/* ACCOUNT */}
+
         <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-              {firstName.charAt(0).toUpperCase()}
+              {firstName
+                .charAt(0)
+                .toUpperCase()}
             </div>
 
             <div className="min-w-0 flex-1">
@@ -614,33 +895,31 @@ export default function ManagerVehiclesPage() {
 
           <button
             type="button"
-            onClick={logout}
-            disabled={loggingOut}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
           >
-            {loggingOut ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Signing out...
-              </>
-            ) : (
-              <>
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </>
-            )}
+            <LogOut className="h-4 w-4" />
+            Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ======================================================
+          MAIN
+      ====================================================== */}
+
       <main className="min-h-screen lg:pl-72">
+
+        {/* HEADER */}
+
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setSidebarOpen(true)}
+                onClick={() =>
+                  setMobileMenuOpen(true)
+                }
                 aria-label="Open navigation"
                 className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
               >
@@ -670,14 +949,20 @@ export default function ManagerVehiclesPage() {
               <div className="hidden h-10 w-px bg-slate-200 sm:block" />
 
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
-                {firstName.charAt(0).toUpperCase()}
+                {firstName
+                  .charAt(0)
+                  .toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
         <div className="px-4 py-6 sm:px-6 lg:px-8">
-          {/* Welcome banner */}
+
+          {/* ==================================================
+              WELCOME SECTION
+          ================================================== */}
+
           <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-3xl">
@@ -694,12 +979,13 @@ export default function ManagerVehiclesPage() {
                 </p>
 
                 <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-                  Vehicles
+                  Manage company vehicles
                 </h2>
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  Manage company vehicles, track odometer readings, and monitor
-                  fleet status.
+                  View and manage registered vehicles,
+                  monitor odometer readings, and keep
+                  fleet records up to date.
                 </p>
               </div>
 
@@ -709,346 +995,897 @@ export default function ManagerVehiclesPage() {
             </div>
           </section>
 
-          {success && (
-            <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100">
-                <span className="text-xs text-emerald-600">✓</span>
-              </div>
-              <p className="text-sm font-medium text-emerald-800">{success}</p>
+          {/* ==================================================
+              SUCCESS MESSAGE
+          ================================================== */}
+
+          {successMessage && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
+
+              <span className="font-medium">
+                {successMessage}
+              </span>
             </div>
           )}
+
+          {/* ==================================================
+              ERROR MESSAGE
+          ================================================== */}
 
           {error && (
-            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
-              <div>
-                <p className="font-semibold text-red-800">
-                  Unable to load vehicles
-                </p>
-                <p className="mt-1 whitespace-pre-line text-sm text-red-700">
-                  {error}
-                </p>
-              </div>
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+
+              <span className="font-medium">
+                {error}
+              </span>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setError("")
+                }
+                className="ml-auto text-xs font-bold text-red-700 hover:text-red-900"
+              >
+                Dismiss
+              </button>
             </div>
           )}
 
-          {/* Stats */}
-          <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="rounded-xl bg-blue-50 p-2.5">
+          {/* ==================================================
+              OVERVIEW STATS
+          ================================================== */}
+
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+            {/* TOTAL VEHICLES */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Total Vehicles
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {formatNumber(
+                      totalVehicles
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Registered fleet
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
                   <Truck className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
-              <p className="text-sm text-slate-500">Total Vehicles</p>
-              <p className="mt-1 text-2xl font-bold">{totalVehicles}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="rounded-xl bg-emerald-50 p-2.5">
-                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+
+            {/* CLOSING */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Closing Recorded
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {formatNumber(
+                      vehiclesWithClosingReading
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Vehicles with closing readings
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
                 </div>
               </div>
-              <p className="text-sm text-slate-500">With Closing Reading</p>
-              <p className="mt-1 text-2xl font-bold">{vehiclesWithClosing}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="rounded-xl bg-orange-50 p-2.5">
-                  <TrendingDown className="h-5 w-5 text-orange-600" />
+
+            {/* PENDING */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Pending Readings
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {formatNumber(
+                      vehiclesWithoutClosingReading
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Closing reading required
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
                 </div>
               </div>
-              <p className="text-sm text-slate-500">Without Closing Reading</p>
-              <p className="mt-1 text-2xl font-bold">{vehiclesWithoutClosing}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="rounded-xl bg-violet-50 p-2.5">
+
+            {/* AVERAGE */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Avg Opening Odometer
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black text-slate-950">
+                    {formatNumber(
+                      Math.round(
+                        averageOpeningOdometer
+                      )
+                    )}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Fleet average · km
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50">
                   <Gauge className="h-5 w-5 text-violet-600" />
                 </div>
               </div>
-              <p className="text-sm text-slate-500">Avg Opening Odometer</p>
-              <p className="mt-1 text-2xl font-bold">
-                {formatNumber(averageOpening)}
-              </p>
             </div>
-          </div>
+          </section>
 
-          {/* Search + Actions */}
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          {/* ==================================================
+              VEHICLE REGISTER
+          ================================================== */}
+
+          <section>
+            <div className="mb-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                    Fleet
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+                    Vehicle Register
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    View and manage company vehicle records.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={refreshPage}
+                    disabled={refreshing}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${
+                        refreshing
+                          ? "animate-spin"
+                          : ""
+                      }`}
+                    />
+
+                    Refresh
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={openCreateModal}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4" />
+
+                    Register Vehicle
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* SEARCH */}
+
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="relative w-full lg:max-w-xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+
                 <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by asset identifier, operator, or remarks..."
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) =>
+                    setSearchTerm(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Search registration, make, model or vehicle type..."
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
                 />
               </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={refreshPage}
-                  disabled={refreshing}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                  />
-                  Refresh
-                </button>
-                <button
-                  onClick={openCreateModal}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  Register Vehicle
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <div>
-                <h2 className="font-semibold">Vehicle Register</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Showing {filteredVehicles.length} of {vehicles.length} vehicles
-                </p>
-              </div>
             </div>
 
-            {filteredVehicles.length === 0 ? (
-              <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
-                <div className="mb-4 rounded-full bg-slate-100 p-4">
-                  <Truck className="h-7 w-7 text-slate-400" />
+            {/* TABLE */}
+
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+              <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Registered Vehicles
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {filteredVehicles.length} vehicle
+                    {filteredVehicles.length === 1
+                      ? ""
+                      : "s"} found
+                  </p>
                 </div>
-                <h3 className="font-semibold">No vehicles found</h3>
-                <p className="mt-1 max-w-md text-sm text-slate-500">
-                  {vehicles.length === 0
-                    ? "No vehicles have been registered yet."
-                    : "Try changing your search."}
-                </p>
+
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+
+                  Manager access
+                </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-5 py-4">Asset</th>
-                      <th className="px-5 py-4">Operator</th>
-                      <th className="px-5 py-4 text-right">Opening</th>
-                      <th className="px-5 py-4 text-right">Closing</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredVehicles.map((vehicle) => (
-                      <tr
-                        key={vehicle.id}
-                        className="transition hover:bg-slate-50"
-                      >
-                        <td className="px-5 py-4">
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              {vehicle.asset_identifier}
-                            </p>
-                            {vehicle.remarks && (
-                              <p className="mt-0.5 text-xs text-slate-500">
-                                {vehicle.remarks}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-slate-600">
-                          {vehicle.assigned_operator || "—"}
-                        </td>
-                        <td className="px-5 py-4 text-right font-medium text-slate-700">
-                          {formatNumber(vehicle.opening_odometer_reading)}
-                        </td>
-                        <td className="px-5 py-4 text-right font-medium text-slate-700">
-                          {formatNumber(vehicle.closing_odometer_reading)}
-                        </td>
-                        <td className="px-5 py-4">
-                          {vehicle.closing_odometer_reading !== null ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              Complete
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                              <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                              Active
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex justify-end gap-1">
-                            <button
-                              onClick={() => setSelectedVehicle(vehicle)}
-                              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                              title="View vehicle"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
+
+              {filteredVehicles.length === 0 ? (
+                <div className="px-6 py-16 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                    <Truck className="h-7 w-7 text-slate-400" />
+                  </div>
+
+                  <h4 className="mt-5 text-base font-bold text-slate-900">
+                    No vehicles found
+                  </h4>
+
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                    {searchTerm
+                      ? "No vehicles match your search. Try a different registration number, make, model, or vehicle type."
+                      : "There are currently no vehicles registered in the system."}
+                  </p>
+
+                  {!searchTerm && (
+                    <button
+                      type="button"
+                      onClick={
+                        openCreateModal
+                      }
+                      className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4" />
+
+                      Register Vehicle
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-left">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/80">
+                        <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Vehicle
+                        </th>
+
+                        <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Type
+                        </th>
+
+                        <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Opening
+                        </th>
+
+                        <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Closing
+                        </th>
+
+                        <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Status
+                        </th>
+
+                        <th className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                    </thead>
 
-          {/* Footer */}
-          <footer className="mt-8 border-t border-slate-200 pt-6">
-            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredVehicles.map(
+                        (vehicle) => {
+                          const hasClosing =
+                            vehicle.closing_odometer !==
+                              null &&
+                            vehicle.closing_odometer !==
+                              undefined &&
+                            vehicle.closing_odometer !==
+                              "";
 
-              <p>Management Portal · Manager Access</p>
+                          return (
+                            <tr
+                              key={
+                                vehicle.id
+                              }
+                              className="transition hover:bg-slate-50/70"
+                            >
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                                    <Truck className="h-5 w-5 text-blue-600" />
+                                  </div>
+
+                                  <div>
+                                    <p className="font-bold text-slate-900">
+                                      {
+                                        vehicle.registration_number
+                                      }
+                                    </p>
+
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                      {[
+                                        vehicle.make,
+                                        vehicle.model,
+                                      ]
+                                        .filter(
+                                          Boolean
+                                        )
+                                        .join(
+                                          " "
+                                        ) ||
+                                        "Vehicle"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span className="text-sm font-medium text-slate-700">
+                                  {vehicle.vehicle_type ||
+                                    "—"}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {formatNumber(
+                                      vehicle.opening_odometer
+                                    )}
+                                  </p>
+
+                                  <p className="mt-0.5 text-[11px] text-slate-400">
+                                    km
+                                  </p>
+                                </div>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {formatNumber(
+                                      vehicle.closing_odometer
+                                    )}
+                                  </p>
+
+                                  <p className="mt-0.5 text-[11px] text-slate-400">
+                                    km
+                                  </p>
+                                </div>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                {hasClosing ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                                    Complete
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+
+                                    Pending
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setViewVehicle(
+                                        vehicle
+                                      )
+                                    }
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                                    title="View vehicle"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openEditModal(
+                                        vehicle
+                                      )
+                                    }
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                                    title="Edit vehicle"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      deleteVehicle(
+                                        vehicle
+                                      )
+                                    }
+                                    disabled={
+                                      deleting ===
+                                      vehicle.id
+                                    }
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                    title="Delete vehicle"
+                                  >
+                                    {deleting ===
+                                    vehicle.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
+          </section>
+
+          {/* ==================================================
+              FOOTER
+          ================================================== */}
+
+          <footer className="py-6 text-center">
+            <p className="text-xs text-slate-400">
+              Nyutu Ltd Enterprise Management System
+            </p>
+
+            <p className="mt-1 text-[10px] text-slate-400">
+              Secure operations management
+            </p>
           </footer>
         </div>
       </main>
 
-      {/* View modal */}
-      {selectedVehicle && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+      {/* ======================================================
+          CREATE / EDIT MODAL
+      ====================================================== */}
+
+      {showModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-lg font-bold">Vehicle Details</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                  Fleet Management
+                </p>
+
+                <h3 className="mt-1 text-lg font-bold text-slate-900">
+                  {modalMode === "edit"
+                    ? "Edit Vehicle"
+                    : "Register Vehicle"}
+                </h3>
+
                 <p className="mt-1 text-sm text-slate-500">
-                  Complete vehicle information
+                  {modalMode === "edit"
+                    ? "Update the vehicle information below."
+                    : "Enter the vehicle information below."}
                 </p>
               </div>
+
               <button
                 type="button"
-                onClick={() => setSelectedVehicle(null)}
-                className="rounded-lg p-2 transition-colors hover:bg-slate-100"
-                aria-label="Close"
+                onClick={closeModal}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="grid gap-5 sm:grid-cols-2">
+
+                {/* REGISTRATION */}
+
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Registration Number
+                  </label>
+
+                  <input
+                    type="text"
+                    value={
+                      form.registration_number
+                    }
+                    onChange={(event) =>
+                      updateForm(
+                        "registration_number",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. KDA 123A"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm uppercase outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* MAKE */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Make
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.make}
+                    onChange={(event) =>
+                      updateForm(
+                        "make",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. Toyota"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* MODEL */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Model
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.model}
+                    onChange={(event) =>
+                      updateForm(
+                        "model",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. Hilux"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* VEHICLE TYPE */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Vehicle Type
+                  </label>
+
+                  <input
+                    type="text"
+                    value={form.vehicle_type}
+                    onChange={(event) =>
+                      updateForm(
+                        "vehicle_type",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. Truck"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* YEAR */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Year
+                  </label>
+
+                  <input
+                    type="number"
+                    value={form.year}
+                    onChange={(event) =>
+                      updateForm(
+                        "year",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. 2022"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* OPENING ODOMETER */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Opening Odometer
+                  </label>
+
+                  <input
+                    type="number"
+                    value={
+                      form.opening_odometer
+                    }
+                    onChange={(event) =>
+                      updateForm(
+                        "opening_odometer",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. 125000"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* CLOSING ODOMETER */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Closing Odometer
+                  </label>
+
+                  <input
+                    type="number"
+                    value={
+                      form.closing_odometer
+                    }
+                    onChange={(event) =>
+                      updateForm(
+                        "closing_odometer",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. 125500"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={saving}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={saveVehicle}
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+
+                {saving
+                  ? "Saving..."
+                  : modalMode === "edit"
+                  ? "Update Vehicle"
+                  : "Register Vehicle"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          VIEW VEHICLE MODAL
+      ====================================================== */}
+
+      {viewVehicle && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                  Vehicle Details
+                </p>
+
+                <h3 className="mt-1 text-xl font-black text-slate-900">
+                  {
+                    viewVehicle.registration_number
+                  }
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setViewVehicle(null)
+                }
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="p-6">
-              <div className="mb-8 flex flex-col items-center gap-4 sm:flex-row">
-                <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">
-                  {selectedVehicle.asset_identifier.charAt(0).toUpperCase()}
+
+              {/* VEHICLE SUMMARY */}
+
+              <div className="mb-6 flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50">
+                  <Truck className="h-7 w-7 text-blue-600" />
                 </div>
-                <div className="text-center sm:text-left">
-                  <h3 className="text-xl font-bold">
-                    {selectedVehicle.asset_identifier}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {selectedVehicle.assigned_operator || "No operator assigned"}
+
+                <div>
+                  <p className="font-bold text-slate-900">
+                    {[
+                      viewVehicle.make,
+                      viewVehicle.model,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") ||
+                      "Vehicle"}
                   </p>
-                  <span
-                    className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                      selectedVehicle.closing_odometer_reading !== null
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-blue-50 text-blue-700"
-                    }`}
-                  >
-                    {selectedVehicle.closing_odometer_reading !== null
-                      ? "Complete"
-                      : "Active"}
-                  </span>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {viewVehicle.vehicle_type ||
+                      "Vehicle type not specified"}
+                  </p>
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Asset Identifier
+              {/* DETAILS */}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Registration
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {selectedVehicle.asset_identifier}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Assigned Operator
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {selectedVehicle.assigned_operator || "—"}
+
+                  <p className="mt-1 font-bold text-slate-900">
+                    {
+                      viewVehicle.registration_number
+                    }
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Year
+                  </p>
+
+                  <p className="mt-1 font-bold text-slate-900">
+                    {viewVehicle.year ||
+                      "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Opening Odometer
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {formatNumber(selectedVehicle.opening_odometer_reading)}
+
+                  <p className="mt-1 font-bold text-slate-900">
+                    {formatNumber(
+                      viewVehicle.opening_odometer
+                    )}{" "}
+                    km
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Closing Odometer
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {formatNumber(selectedVehicle.closing_odometer_reading)}
+
+                  <p className="mt-1 font-bold text-slate-900">
+                    {formatNumber(
+                      viewVehicle.closing_odometer
+                    )}{" "}
+                    km
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Status
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {selectedVehicle.closing_odometer_reading !== null
-                      ? "Complete"
-                      : "Active"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Registered At
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {formatDate(selectedVehicle.created_at)}
-                  </p>
-                </div>
-                <div className="sm:col-span-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Remarks
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {selectedVehicle.remarks || "No remarks"}
-                  </p>
-                </div>
 
-                {selectedVehicle.closing_odometer_reading !== null && (
-                  <div className="border-t border-slate-200 pt-4 sm:col-span-2">
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                      <p className="text-sm text-blue-700">
-                        <Gauge className="mr-2 inline h-4 w-4" />
-                        Total usage:{" "}
-                        <strong>
-                          {formatNumber(
-                            selectedVehicle.closing_odometer_reading -
-                              selectedVehicle.opening_odometer_reading
-                          )}
-                        </strong>
-                      </p>
-                    </div>
+                  <div className="mt-2">
+                    {viewVehicle.closing_odometer !==
+                      null &&
+                    viewVehicle.closing_odometer !==
+                      undefined &&
+                    viewVehicle.closing_odometer !==
+                      "" ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                        Complete
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+
+                        Pending
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="mt-8 flex justify-end border-t border-slate-200 pt-5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedVehicle(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  Close
-                </button>
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Registered
+                  </p>
+
+                  <p className="mt-1 font-bold text-slate-900">
+                    {formatDate(
+                      viewVehicle.created_at
+                    )}
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* ACTIONS */}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setViewVehicle(null)
+                }
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setViewVehicle(null);
+                  openEditModal(
+                    viewVehicle
+                  );
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                <Pencil className="h-4 w-4" />
+
+                Edit Vehicle
+              </button>
             </div>
           </div>
         </div>
@@ -1056,3 +1893,4 @@ export default function ManagerVehiclesPage() {
     </div>
   );
 }
+
