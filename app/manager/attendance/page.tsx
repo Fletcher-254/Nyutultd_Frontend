@@ -2,29 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
 import {
-  LayoutDashboard,
-  Users,
+  AlertCircle,
   CalendarCheck,
-  Truck,
-  Fuel,
+  ChevronRight,
   CircleDollarSign,
-  Store,
+  Clock3,
+  Fuel,
+  LayoutDashboard,
   LogOut,
   Menu,
-  X,
   Receipt,
-  ChevronRight,
+  RefreshCw,
+  Search,
   ShieldCheck,
+  Store,
+  Truck,
   UserCheck,
   UserX,
-  Clock3,
-  Loader2,
-  AlertCircle,
-  Search,
-  Filter,
-  RefreshCw,
+  Users,
+  X,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -41,6 +38,9 @@ interface Me {
   first_name?: string | null;
   last_name?: string | null;
   role: Role;
+  is_active?: boolean;
+  is_verified?: boolean;
+  created_at?: string;
 }
 
 interface Employee {
@@ -66,47 +66,6 @@ interface Module {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 }
-
-const modules: Module[] = [
-  {
-    label: "Employees",
-    href: "/manager/employees",
-    icon: Users,
-  },
-  {
-    label: "Attendance",
-    href: "/manager/attendance",
-    icon: CalendarCheck,
-  },
-  {
-    label: "Daily Wages",
-    href: "/manager/daily-wages",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Vehicles",
-    href: "/manager/vehicles",
-    icon: Truck,
-  },
-  {
-    label: "Fuel",
-    href: "/manager/fuel",
-    icon: Fuel,
-  },
-  {
-    label: "Vendors",
-    href: "/manager/vendors",
-    icon: Store,
-  },
-
-  {
-    label: "Expenses",
-    href: "/manager/expenses",
-    icon: Receipt,
-  },
-
-
-];
 
 function extractArray<T>(data: unknown): T[] {
   if (Array.isArray(data)) {
@@ -135,6 +94,7 @@ function formatDate(dateString: string) {
   }
 
   return new Intl.DateTimeFormat("en-KE", {
+    weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -163,20 +123,6 @@ function formatTime(time?: string) {
   return `${displayHour}:${minutes} ${suffix}`;
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Good morning";
-  }
-
-  if (hour < 17) {
-    return "Good afternoon";
-  }
-
-  return "Good evening";
-}
-
 function getStatusBadge(status: string) {
   const statusMap: Record<
     string,
@@ -187,21 +133,19 @@ function getStatusBadge(status: string) {
     }
   > = {
     present: {
-      color:
-        "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+      color: "bg-emerald-50 text-emerald-700",
       icon: <UserCheck className="h-3.5 w-3.5" />,
       label: "Present",
     },
 
     absent: {
-      color: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+      color: "bg-red-50 text-red-700",
       icon: <UserX className="h-3.5 w-3.5" />,
       label: "Absent",
     },
 
     unmarked: {
-      color:
-        "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200",
+      color: "bg-slate-100 text-slate-600",
       icon: <Clock3 className="h-3.5 w-3.5" />,
       label: "Unmarked",
     },
@@ -236,116 +180,188 @@ export default function ManagerAttendancePage() {
   >("all");
 
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const navigate = (href: string) => {
-    setMobileOpen(false);
-    router.push(href);
-  };
+  const modules: Module[] = useMemo(
+    () => [
+      {
+        label: "Dashboard",
+        href: "/manager/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Employees",
+        href: "/manager/employees",
+        icon: Users,
+      },
+      {
+        label: "Attendance",
+        href: "/manager/attendance",
+        icon: CalendarCheck,
+      },
+      {
+        label: "Daily Wages",
+        href: "/manager/daily-wages",
+        icon: CircleDollarSign,
+      },
+      {
+        label: "Vehicles",
+        href: "/manager/vehicles",
+        icon: Truck,
+      },
+      {
+        label: "Fuel",
+        href: "/manager/fuel",
+        icon: Fuel,
+      },
+      {
+        label: "Vendors",
+        href: "/manager/vendors",
+        icon: Store,
+      },
+      {
+        label: "Expenses",
+        href: "/manager/expenses",
+        icon: Receipt,
+      },
+    ],
+    []
+  );
 
-  const isActive = (href: string) => {
-    if (href === "/manager/dashboard") {
-      return pathname === href;
-    }
-
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
-
-  const authenticatedFetch = useCallback(
-    async (endpoint: string) => {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (response.status === 401) {
-        router.replace("/");
-        throw new Error("Your session has expired.");
+  const isActive = useCallback(
+    (href: string) => {
+      if (href === "/manager/dashboard") {
+        return pathname === href;
       }
 
-      if (!response.ok) {
-        let message = `Request failed with status ${response.status}.`;
+      return pathname === href || pathname.startsWith(`${href}/`);
+    },
+    [pathname]
+  );
 
-        try {
-          const data = await response.json();
-
-          if (typeof data?.detail === "string") {
-            message = data.detail;
-          } else if (typeof data?.error === "string") {
-            message = data.error;
-          }
-        } catch {
-          // Keep default message.
-        }
-
-        throw new Error(message);
-      }
-
-      return response.json();
+  const navigate = useCallback(
+    (href: string) => {
+      setMobileOpen(false);
+      router.push(href);
     },
     [router]
   );
 
-  const loadAttendance = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const handleUnauthorized = useCallback(() => {
+    router.replace("/");
+  }, [router]);
+
+  const authenticatedFetch = useCallback(
+    async (url: string, options: RequestInit = {}) => {
+      const response = await fetch(url, {
+        ...options,
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          ...(options.headers || {}),
+        },
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        throw new Error("Unauthorized");
       }
 
-      setError("");
-
-      try {
-        const [meData, employeesData, attendanceData] =
-          await Promise.all([
-            authenticatedFetch("/me/"),
-            authenticatedFetch("/employees/list/"),
-            authenticatedFetch("/attendance/today/"),
-          ]);
-
-        if (meData.role === "admin") {
-          router.replace("/admin/dashboard");
-          return;
-        }
-
-        if (meData.role === "director") {
-          router.replace("/director/dashboard");
-          return;
-        }
-
-        if (meData.role !== "manager") {
-          router.replace("/");
-          return;
-        }
-
-        setMe(meData);
-        setEmployees(extractArray<Employee>(employeesData));
-        setAttendance(
-          extractArray<AttendanceRecord>(attendanceData)
-        );
-      } catch (err) {
-        if (err instanceof Error && err.message) {
-          setError(err.message);
-        } else {
-          setError("Unable to load attendance.");
-        }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      return response;
     },
-    [authenticatedFetch, router]
+    [handleUnauthorized]
   );
+
+  const loadAttendance = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [meResponse, employeesResponse, attendanceResponse] =
+        await Promise.all([
+          authenticatedFetch(`${API_URL}/me/`),
+          authenticatedFetch(`${API_URL}/employees/list/`),
+          authenticatedFetch(`${API_URL}/attendance/today/`),
+        ]);
+
+      if (!meResponse.ok) {
+        throw new Error("Unable to load your account.");
+      }
+
+      if (!employeesResponse.ok) {
+        throw new Error("Unable to load employees.");
+      }
+
+      if (!attendanceResponse.ok) {
+        throw new Error("Unable to load attendance records.");
+      }
+
+      const meData: Me = await meResponse.json();
+      const employeesData = await employeesResponse.json();
+      const attendanceData = await attendanceResponse.json();
+
+      if (meData.role === "admin") {
+        router.replace("/admin/dashboard");
+        return;
+      }
+
+      if (meData.role === "director") {
+        router.replace("/director/dashboard");
+        return;
+      }
+
+      if (meData.role !== "manager") {
+        router.replace("/");
+        return;
+      }
+
+      setMe(meData);
+      setEmployees(extractArray<Employee>(employeesData));
+      setAttendance(
+        extractArray<AttendanceRecord>(attendanceData)
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return;
+      }
+
+      console.error("Attendance loading error:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while loading attendance."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticatedFetch, router]);
 
   useEffect(() => {
     loadAttendance();
   }, [loadAttendance]);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await fetch(`${API_URL}/logout/`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      router.replace("/");
+    }
+  };
 
   const attendanceByEmployee = useMemo(() => {
     const map = new Map<number, AttendanceRecord>();
@@ -373,43 +389,38 @@ export default function ManagerAttendancePage() {
     });
   }, [employees, attendanceByEmployee]);
 
-  const stats = useMemo(() => {
-    const present = attendance.filter(
-      (record) => record.is_present === true
-    ).length;
-
-    const absent = attendance.filter(
-      (record) => record.is_present === false
-    ).length;
-
-    const marked = attendance.length;
-
-    const unmarked = Math.max(employees.length - marked, 0);
-
-    return {
-      total: employees.length,
-      marked,
-      present,
-      absent,
-      unmarked,
-    };
-  }, [employees, attendance]);
-
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const searchValue = search.trim().toLowerCase();
 
     return rows.filter(({ employee, status }) => {
       const matchesSearch =
-        !query ||
-        employee.full_name.toLowerCase().includes(query) ||
-        employee.employee_id.toLowerCase().includes(query);
+        !searchValue ||
+        employee.full_name?.toLowerCase().includes(searchValue) ||
+        employee.employee_id?.toLowerCase().includes(searchValue);
 
       const matchesStatus =
         statusFilter === "all" || status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      return Boolean(matchesSearch && matchesStatus);
     });
   }, [rows, search, statusFilter]);
+
+  const totalEmployees = employees.length;
+
+  const presentEmployees = attendance.filter(
+    (record) => record.is_present === true
+  ).length;
+
+  const absentEmployees = attendance.filter(
+    (record) => record.is_present === false
+  ).length;
+
+  const markedEmployees = attendance.length;
+
+  const unmarkedEmployees = Math.max(
+    totalEmployees - markedEmployees,
+    0
+  );
 
   const attendanceDate = attendance[0]?.date;
 
@@ -422,34 +433,21 @@ export default function ManagerAttendancePage() {
     `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
     firstName;
 
-  const handleLogout = async () => {
-    if (loggingOut) {
-      return;
-    }
+  const currentHour = new Date().getHours();
 
-    setLoggingOut(true);
+  const greeting =
+    currentHour < 12
+      ? "Good morning"
+      : currentHour < 17
+        ? "Good afternoon"
+        : "Good evening";
 
-    try {
-      await fetch(`${API_URL}/logout/`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-    } catch {
-      // Leave the page regardless of logout request failure.
-    } finally {
-      router.replace("/");
-    }
-  };
-
-  if (loading) {
+  if (loading && !me) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
-            <Loader2 className="h-7 w-7 animate-spin text-white" />
+            <RefreshCw className="h-7 w-7 animate-spin text-white" />
           </div>
 
           <h2 className="text-lg font-semibold text-slate-900">
@@ -457,36 +455,8 @@ export default function ManagerAttendancePage() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Retrieving today&apos;s attendance records
+            Verifying secure access
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-7 w-7 text-red-600" />
-          </div>
-
-          <h2 className="text-lg font-semibold text-slate-900">
-            Unable to load attendance
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {error}
-          </p>
-
-          <button
-            onClick={() => loadAttendance()}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Try Again
-          </button>
         </div>
       </div>
     );
@@ -504,7 +474,7 @@ export default function ManagerAttendancePage() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -551,30 +521,6 @@ export default function ManagerAttendancePage() {
           </div>
 
           <nav className="space-y-1.5">
-            <button
-              type="button"
-              onClick={() => navigate("/manager/dashboard")}
-              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
-                isActive("/manager/dashboard")
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <LayoutDashboard
-                className={`h-5 w-5 ${
-                  isActive("/manager/dashboard")
-                    ? "text-white"
-                    : "text-slate-500 group-hover:text-slate-300"
-                }`}
-              />
-
-              <span className="flex-1">Dashboard</span>
-
-              {isActive("/manager/dashboard") && (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-
             {modules.map((module) => {
               const Icon = module.icon;
               const active = isActive(module.href);
@@ -643,7 +589,7 @@ export default function ManagerAttendancePage() {
           >
             {loggingOut ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <RefreshCw className="h-4 w-4 animate-spin" />
                 Signing out...
               </>
             ) : (
@@ -656,7 +602,7 @@ export default function ManagerAttendancePage() {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* MAIN */}
       <main className="min-h-screen lg:pl-72">
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -673,7 +619,7 @@ export default function ManagerAttendancePage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-500">
-                  {getGreeting()}
+                  {greeting}
                 </p>
 
                 <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
@@ -701,259 +647,231 @@ export default function ManagerAttendancePage() {
         </header>
 
         <div className="px-4 py-6 sm:px-6 lg:px-8">
-          {/* Breadcrumb */}
-          <div className="mb-6 flex items-center gap-2 text-sm">
-            <button
-              type="button"
-              onClick={() => navigate("/manager/dashboard")}
-              className="font-medium text-slate-400 transition hover:text-blue-600"
-            >
-              Dashboard
-            </button>
+          {/* Welcome banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <CalendarCheck className="h-3.5 w-3.5 text-blue-300" />
 
-            <ChevronRight className="h-4 w-4 text-slate-300" />
-
-            <span className="font-semibold text-slate-700">
-              Attendance
-            </span>
-          </div>
-
-          {/* Page heading */}
-          <section className="mb-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
-                    <CalendarCheck className="h-5 w-5 text-blue-600" />
-                  </div>
-
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-                    Operations
+                  <span className="text-xs font-semibold text-blue-200">
+                    Attendance Management
                   </span>
                 </div>
 
-                <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
                   Attendance
                 </h2>
 
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
                   View today&apos;s attendance records for all active
                   employees.
                 </p>
 
                 {attendanceDate && (
-                  <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200">
                     <CalendarCheck className="h-3.5 w-3.5" />
                     {formatDate(attendanceDate)}
                   </div>
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => loadAttendance(true)}
-                disabled={refreshing}
-                className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${
-                    refreshing ? "animate-spin" : ""
-                  }`}
-                />
-                Refresh
-              </button>
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                <CalendarCheck className="h-8 w-8 text-blue-300" />
+              </div>
             </div>
           </section>
 
+          {/* Error */}
+          {error && (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
+              <div className="flex-1">
+                <p className="font-semibold">
+                  Unable to load attendance
+                </p>
+
+                <p className="mt-1 text-sm">{error}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadAttendance}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    loading ? "animate-spin" : ""
+                  }`}
+                />
+
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Summary cards */}
           <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Total Employees
-                  </p>
+            <SummaryCard
+              icon={Users}
+              label="Total Employees"
+              value={totalEmployees}
+              description="Active in system"
+            />
 
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.total}
-                  </p>
+            <SummaryCard
+              icon={UserCheck}
+              label="Present"
+              value={presentEmployees}
+              description="Marked present today"
+            />
 
-                  <p className="mt-1 text-xs text-slate-500">
-                    Active in system
-                  </p>
-                </div>
+            <SummaryCard
+              icon={UserX}
+              label="Absent"
+              value={absentEmployees}
+              description="Marked absent today"
+            />
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
+            <SummaryCard
+              icon={Clock3}
+              label="Unmarked"
+              value={unmarkedEmployees}
+              description="Awaiting attendance"
+            />
+          </section>
+
+          {/* Search + Filters */}
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900">
+                  Daily Attendance
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {filteredRows.length} employee
+                  {filteredRows.length === 1 ? "" : "s"} shown
+                </p>
               </div>
-            </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Present
-                  </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.present}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Marked present today
-                  </p>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) =>
+                      setSearch(event.target.value)
+                    }
+                    placeholder="Search employees..."
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 sm:w-72"
+                  />
                 </div>
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
-                  <UserCheck className="h-5 w-5 text-emerald-600" />
-                </div>
-              </div>
-            </div>
+                <select
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(
+                      event.target.value as
+                        | "all"
+                        | "present"
+                        | "absent"
+                        | "unmarked"
+                    )
+                  }
+                  className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                >
+                  <option value="all">All Employees</option>
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                  <option value="unmarked">Unmarked</option>
+                </select>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Absent
-                  </p>
+                <button
+                  type="button"
+                  onClick={loadAttendance}
+                  disabled={loading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      loading ? "animate-spin" : ""
+                    }`}
+                  />
 
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.absent}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Marked absent today
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
-                  <UserX className="h-5 w-5 text-red-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Unmarked
-                  </p>
-
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.unmarked}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Awaiting attendance
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-                  <Clock3 className="h-5 w-5 text-amber-600" />
-                </div>
+                  Refresh
+                </button>
               </div>
             </div>
           </section>
 
           {/* Attendance table */}
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 p-5 sm:p-6">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                    Daily Records
-                  </p>
-
-                  <h3 className="mt-1 text-lg font-bold text-slate-950">
-                    Today&apos;s Attendance
+                  <h3 className="font-bold text-slate-900">
+                    Attendance Records
                   </h3>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    {filteredRows.length} employee
-                    {filteredRows.length === 1 ? "" : "s"} shown
+                  <p className="mt-1 text-xs text-slate-500">
+                    Today&apos;s employee attendance
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(event) =>
-                        setSearch(event.target.value)
-                      }
-                      placeholder="Search by name or employee ID..."
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-64"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <select
-                      value={statusFilter}
-                      onChange={(event) =>
-                        setStatusFilter(
-                          event.target.value as
-                            | "all"
-                            | "present"
-                            | "absent"
-                            | "unmarked"
-                        )
-                      }
-                      className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-44"
-                    >
-                      <option value="all">All Employees</option>
-                      <option value="present">Present</option>
-                      <option value="absent">Absent</option>
-                      <option value="unmarked">Unmarked</option>
-                    </select>
-                  </div>
+                <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  {filteredRows.length} Records
                 </div>
               </div>
             </div>
 
             {filteredRows.length === 0 ? (
-              <div className="px-6 py-16 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
                   <CalendarCheck className="h-7 w-7 text-slate-400" />
                 </div>
 
-                <h4 className="text-base font-bold text-slate-900">
+                <h4 className="font-semibold text-slate-900">
                   No attendance records found
                 </h4>
 
-                <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-500">
-                  Try changing your search or attendance filter.
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  No attendance records match your current search or
+                  status filter.
                 </p>
               </div>
             ) : (
               <>
                 {/* Desktop table */}
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full">
+                  <table className="w-full min-w-[850px]">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/70">
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Employee
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Employee ID
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          ID
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Employment Type
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          Employment
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Time
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Status
                         </th>
                       </tr>
@@ -961,58 +879,76 @@ export default function ManagerAttendancePage() {
 
                     <tbody className="divide-y divide-slate-100">
                       {filteredRows.map(
-                        ({ employee, record, status }) => (
-                          <tr
-                            key={employee.id}
-                            className="transition hover:bg-slate-50/70"
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
-                                  {employee.full_name
-                                    .split(" ")
-                                    .slice(0, 2)
-                                    .map((part) =>
-                                      part.charAt(0)
-                                    )
-                                    .join("")
-                                    .toUpperCase()}
+                        ({ employee, record, status }) => {
+                          const employeeName =
+                            employee.full_name?.trim() ||
+                            "Unnamed Employee";
+
+                          const employmentType =
+                            employee.employment_type ||
+                            "Not specified";
+
+                          return (
+                            <tr
+                              key={employee.id}
+                              className="transition hover:bg-slate-50"
+                            >
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-600">
+                                    {employeeName
+                                      .split(" ")
+                                      .slice(0, 2)
+                                      .map((part) => part[0])
+                                      .join("")
+                                      .toUpperCase()}
+                                  </div>
+
+                                  <div>
+                                    <p className="font-semibold text-slate-900">
+                                      {employeeName}
+                                    </p>
+                                  </div>
                                 </div>
+                              </td>
 
-                                <p className="text-sm font-bold text-slate-900">
-                                  {employee.full_name}
-                                </p>
-                              </div>
-                            </td>
+                              <td className="px-6 py-4">
+                                <span className="font-medium text-slate-700">
+                                  {employee.employee_id || "—"}
+                                </span>
+                              </td>
 
-                            <td className="px-6 py-4 font-mono text-xs text-slate-600">
-                              {employee.employee_id}
-                            </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    employmentType.toLowerCase() ===
+                                    "casual"
+                                      ? "bg-amber-50 text-amber-700"
+                                      : employmentType
+                                            .toLowerCase() ===
+                                          "permanent"
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  {employmentType}
+                                </span>
+                              </td>
 
-                            <td className="px-6 py-4">
-                              <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                                  employee.employment_type.toLowerCase() ===
-                                  "permanent"
-                                    ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
-                                    : "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
-                                }`}
-                              >
-                                {employee.employment_type}
-                              </span>
-                            </td>
+                              <td className="px-6 py-4">
+                                <span className="text-sm text-slate-700">
+                                  {record
+                                    ? formatTime(record.time)
+                                    : "—"}
+                                </span>
+                              </td>
 
-                            <td className="px-6 py-4 text-sm text-slate-600">
-                              {record
-                                ? formatTime(record.time)
-                                : "—"}
-                            </td>
-
-                            <td className="px-6 py-4">
-                              {getStatusBadge(status)}
-                            </td>
-                          </tr>
-                        )
+                              <td className="px-6 py-4">
+                                {getStatusBadge(status)}
+                              </td>
+                            </tr>
+                          );
+                        }
                       )}
                     </tbody>
                   </table>
@@ -1021,103 +957,171 @@ export default function ManagerAttendancePage() {
                 {/* Mobile cards */}
                 <div className="divide-y divide-slate-100 lg:hidden">
                   {filteredRows.map(
-                    ({ employee, record, status }) => (
-                      <div
-                        key={employee.id}
-                        className="p-5 transition hover:bg-slate-50/70 sm:p-6"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-bold text-blue-700">
-                              {employee.full_name
-                                .split(" ")
-                                .slice(0, 2)
-                                .map((part) =>
-                                  part.charAt(0)
-                                )
-                                .join("")
-                                .toUpperCase()}
+                    ({ employee, record, status }) => {
+                      const employeeName =
+                        employee.full_name?.trim() ||
+                        "Unnamed Employee";
+
+                      const employmentType =
+                        employee.employment_type ||
+                        "Not specified";
+
+                      return (
+                        <div
+                          key={employee.id}
+                          className="p-5 transition hover:bg-slate-50 sm:p-6"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-600">
+                                {employeeName
+                                  .split(" ")
+                                  .slice(0, 2)
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .toUpperCase()}
+                              </div>
+
+                              <div className="min-w-0">
+                                <h4 className="truncate text-sm font-bold text-slate-900">
+                                  {employeeName}
+                                </h4>
+
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  {employee.employee_id || "No ID"}
+                                </p>
+                              </div>
                             </div>
 
-                            <div className="min-w-0">
-                              <h4 className="truncate text-sm font-bold text-slate-900">
-                                {employee.full_name}
-                              </h4>
+                            {getStatusBadge(status)}
+                          </div>
 
-                              <p className="mt-0.5 font-mono text-xs text-slate-500">
-                                {employee.employee_id}
+                          <div className="mt-4 grid grid-cols-2 gap-3">
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Employment
+                              </p>
+
+                              <p className="mt-1 text-xs font-semibold capitalize text-slate-700">
+                                {employmentType}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Time
+                              </p>
+
+                              <p className="mt-1 text-xs font-semibold text-slate-700">
+                                {record
+                                  ? formatTime(record.time)
+                                  : "—"}
                               </p>
                             </div>
                           </div>
-
-                          {getStatusBadge(status)}
                         </div>
-
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <div className="rounded-xl bg-slate-50 p-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Employment
-                            </p>
-
-                            <p className="mt-1 text-xs font-semibold capitalize text-slate-700">
-                              {employee.employment_type}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl bg-slate-50 p-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Time
-                            </p>
-
-                            <p className="mt-1 text-xs font-semibold text-slate-700">
-                              {record
-                                ? formatTime(record.time)
-                                : "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
                 </div>
               </>
             )}
           </section>
 
-          {/* Info note */}
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                <CalendarCheck className="h-4 w-4 text-slate-600" />
+          {/* Attendance information */}
+          <section className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
+                  <CalendarCheck className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Attendance Access
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    View-Only Attendance
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Attendance records are maintained through the
+                    authorized attendance process. Managers can view
+                    today&apos;s records but cannot create, edit, or
+                    delete attendance records.
+                  </p>
+                </div>
               </div>
+            </div>
 
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  Attendance is view-only
-                </p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <Clock3 className="h-5 w-5 text-slate-500" />
+                </div>
 
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Attendance records are maintained through the
-                  authorized attendance process. This manager view
-                  does not allow attendance records to be created,
-                  edited, or deleted.
-                </p>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Marked Today
+                  </p>
+
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {markedEmployees}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Attendance records
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
           {/* Footer */}
-          <footer className="py-6 text-center">
+          <footer className="mt-8 border-t border-slate-200 pt-6 text-center">
             <p className="text-xs text-slate-400">
-              Nyutu Ltd Enterprise Management System
-            </p>
-
-            <p className="mt-1 text-[10px] text-slate-400">
-              Secure operations management
+              NYUTU LIMITED ERP MANAGEMENT
             </p>
           </footer>
         </div>
       </main>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            {value}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
     </div>
   );
 }
