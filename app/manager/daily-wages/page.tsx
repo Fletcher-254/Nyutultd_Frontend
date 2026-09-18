@@ -11,9 +11,11 @@ import {
   Fuel,
   CircleDollarSign,
   Store,
+  Receipt,
   LogOut,
   Menu,
   X,
+  ChevronRight,
   ShieldCheck,
   Loader2,
   AlertCircle,
@@ -125,6 +127,12 @@ const modules: Module[] = [
     href: "/manager/vendors",
     icon: Store,
   },
+  {
+    name: "Expenses",
+    description: "View and manage expenses",
+    href: "/manager/expenses",
+    icon: Receipt,
+  },
 ];
 
 function formatCurrency(value: number | string) {
@@ -224,13 +232,24 @@ export default function DailyWagesPage() {
 
   const [isPaying, setIsPaying] = useState<number | null>(null);
   const [paySuccess, setPaySuccess] = useState<string | null>(null);
-  const [showMpesaModal, setShowMpesaModal] = useState<number | null>(
-    null,
-  );
+  const [showMpesaModal, setShowMpesaModal] = useState<number | null>(null);
   const [mpesaReference, setMpesaReference] = useState("");
   const [payError, setPayError] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 10;
+
+  const navigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const authenticatedFetch = useCallback(
     async (endpoint: string, options: RequestInit = {}) => {
@@ -300,9 +319,7 @@ export default function DailyWagesPage() {
       }
 
       setMe(meData);
-      setPayrolls(
-        Array.isArray(payrollsData) ? payrollsData : [],
-      );
+      setPayrolls(Array.isArray(payrollsData) ? payrollsData : []);
       setSummary(summaryData || null);
       setCurrentPage(1);
     } catch (err) {
@@ -330,15 +347,12 @@ export default function DailyWagesPage() {
     setPayError(null);
 
     try {
-      await authenticatedFetch(
-        `/payroll/casual/${payrollId}/pay/`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            mpesa_reference: mpesaReference.trim(),
-          }),
-        },
-      );
+      await authenticatedFetch(`/payroll/casual/${payrollId}/pay/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          mpesa_reference: mpesaReference.trim(),
+        }),
+      });
 
       await loadData();
 
@@ -352,20 +366,12 @@ export default function DailyWagesPage() {
       setTimeout(() => setPaySuccess(null), 5000);
     } catch (err) {
       setPayError(
-        err instanceof Error
-          ? err.message
-          : "Failed to process payment.",
+        err instanceof Error ? err.message : "Failed to process payment.",
       );
     } finally {
       setIsPaying(null);
     }
   };
-
-  /*
-   * ---------------------------------------------------------
-   * LOGOUT
-   * ---------------------------------------------------------
-   */
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -396,15 +402,12 @@ export default function DailyWagesPage() {
       payroll.employee_id.toLowerCase().includes(search);
 
     const matchesStatus =
-      statusFilter === "all" ||
-      payroll.payment_status === statusFilter;
+      statusFilter === "all" || payroll.payment_status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  const totalPages = Math.ceil(
-    filteredPayrolls.length / ITEMS_PER_PAGE,
-  );
+  const totalPages = Math.ceil(filteredPayrolls.length / ITEMS_PER_PAGE);
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
 
@@ -415,18 +418,10 @@ export default function DailyWagesPage() {
 
   const stats = {
     total: payrolls.length,
-    paid: payrolls.filter(
-      (p) => p.payment_status === "paid",
-    ).length,
-    pending: payrolls.filter(
-      (p) => p.payment_status === "pending",
-    ).length,
-    processing: payrolls.filter(
-      (p) => p.payment_status === "processing",
-    ).length,
-    failed: payrolls.filter(
-      (p) => p.payment_status === "failed",
-    ).length,
+    paid: payrolls.filter((p) => p.payment_status === "paid").length,
+    pending: payrolls.filter((p) => p.payment_status === "pending").length,
+    processing: payrolls.filter((p) => p.payment_status === "processing").length,
+    failed: payrolls.filter((p) => p.payment_status === "failed").length,
   };
 
   const greeting = (() => {
@@ -439,13 +434,10 @@ export default function DailyWagesPage() {
   })();
 
   const firstName =
-    me?.first_name?.trim() ||
-    me?.email?.split("@")[0] ||
-    "Manager";
+    me?.first_name?.trim() || me?.email?.split("@")[0] || "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
-    firstName;
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
 
   const initials =
     `${me?.first_name?.[0] || ""}${me?.last_name?.[0] || ""}`.toUpperCase() ||
@@ -460,17 +452,17 @@ export default function DailyWagesPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
+          </div>
 
-          <p className="mt-4 text-sm font-medium text-white">
+          <h2 className="text-lg font-semibold text-slate-900">
             Loading daily wages...
-          </p>
+          </h2>
 
-          <p className="mt-1 text-xs text-slate-400">
-            Fetching payroll data
-          </p>
+          <p className="mt-1 text-sm text-slate-500">Fetching payroll data</p>
         </div>
       </div>
     );
@@ -478,26 +470,24 @@ export default function DailyWagesPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
 
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-slate-900">
             Unable to load data
-          </h1>
+          </h2>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {error}
-          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
 
           <button
             type="button"
             onClick={loadData}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Try again
+            Try Again
           </button>
         </div>
       </div>
@@ -505,7 +495,7 @@ export default function DailyWagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Success Toast */}
       {paySuccess && (
         <div className="fixed right-4 top-4 z-50 max-w-md animate-in slide-in-from-top-2 rounded-lg border border-green-200 bg-green-50 p-4 shadow-lg">
@@ -517,9 +507,7 @@ export default function DailyWagesPage() {
                 Payment Successful
               </p>
 
-              <p className="text-sm text-green-600">
-                {paySuccess}
-              </p>
+              <p className="text-sm text-green-600">{paySuccess}</p>
             </div>
 
             <button
@@ -573,9 +561,7 @@ export default function DailyWagesPage() {
               <input
                 type="text"
                 value={mpesaReference}
-                onChange={(e) =>
-                  setMpesaReference(e.target.value)
-                }
+                onChange={(e) => setMpesaReference(e.target.value)}
                 placeholder="e.g., QWERTY123"
                 className="mt-1 w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
               />
@@ -596,9 +582,7 @@ export default function DailyWagesPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  handlePayEmployee(showMpesaModal)
-                }
+                onClick={() => handlePayEmployee(showMpesaModal)}
                 disabled={isPaying === showMpesaModal}
                 className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
@@ -618,241 +602,246 @@ export default function DailyWagesPage() {
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 text-white transition-transform duration-300 lg:translate-x-0 ${
-          mobileOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand */}
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
             type="button"
-            onClick={() => {
-              setMobileOpen(false);
-              router.push("/manager/dashboard");
-            }}
+            onClick={() => navigate("/manager/dashboard")}
             className="flex items-center gap-3"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold shadow-lg shadow-blue-600/20">
-              N
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">N</span>
             </div>
 
             <div className="text-left">
-              <div className="text-sm font-bold tracking-wide">
-                NYUTU LIMITED
-              </div>
+              <p className="text-sm font-bold tracking-wide text-white">
+                NYUTU LTD
+              </p>
 
-              <div className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
-              </div>
+              </p>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Management
-          </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             <button
               type="button"
-              onClick={() => {
-                setMobileOpen(false);
-                router.push("/manager/dashboard");
-              }}
-              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                pathname === "/manager/dashboard"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-white"
+              onClick={() => navigate("/manager/dashboard")}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                isActive("/manager/dashboard")
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <LayoutDashboard className="h-5 w-5 shrink-0" />
+              <LayoutDashboard
+                className={`h-5 w-5 ${
+                  isActive("/manager/dashboard")
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-slate-300"
+                }`}
+              />
 
-              <span className="flex-1 text-left">
-                Dashboard
-              </span>
+              <span className="flex-1">Dashboard</span>
 
-              {pathname === "/manager/dashboard" && (
-                <ChevronRightIcon className="h-4 w-4" />
+              {isActive("/manager/dashboard") && (
+                <ChevronRight className="h-4 w-4" />
               )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-
-              const isActive =
-                pathname === module.href ||
-                pathname.startsWith(`${module.href}/`);
+              const active = isActive(module.href);
 
               return (
                 <button
                   key={module.name}
                   type="button"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                      : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                  onClick={() => navigate(module.href)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
 
-                  <span className="flex-1 text-left">
-                    {module.name}
-                  </span>
+                  <span className="flex-1">{module.name}</span>
 
-                  {isActive && (
-                    <ChevronRightIcon className="h-4 w-4" />
-                  )}
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Manager Profile + Sign Out */}
-        <div className="border-t border-slate-800 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
-              {initials}
+        {/* Account / Sign Out */}
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              {firstName.charAt(0).toUpperCase()}
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
                 {fullName}
               </p>
 
               <p className="truncate text-xs text-slate-400">
-                Manager
+                {me?.email || "Manager"}
               </p>
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* CONNECTED SIGN OUT */}
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
             ) : (
-              <LogOut className="h-5 w-5" />
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
             )}
-
-            <span>
-              {loggingOut ? "Signing out..." : "Sign Out"}
-            </span>
           </button>
         </div>
       </aside>
 
       {/* Main */}
-      <div className="min-h-screen lg:pl-72">
+      <main className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 lg:hidden"
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
               >
                 <Menu className="h-5 w-5" />
               </button>
 
               <div>
-                <p className="text-xs font-medium text-slate-500">
-                  {today}
+                <p className="text-sm font-medium text-slate-500">
+                  {greeting}
                 </p>
 
-                <h1 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
-                  {greeting}, {firstName}
+                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  {firstName}
                 </h1>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:flex">
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                System Online
+
+                <span className="text-xs font-semibold text-emerald-700">
+                  System Online
+                </span>
               </div>
 
-              <div className="hidden text-right md:block">
-                <p className="text-sm font-semibold text-slate-900">
-                  {fullName}
-                </p>
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
 
-                <p className="text-xs text-slate-500">
-                  Manager
-                </p>
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                {initials}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          {/* Welcome Banner */}
-          <section className="mb-6 overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
-            <div className="relative p-6 sm:p-8">
-              <div className="relative z-10">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300 ring-1 ring-blue-500/20">
-                  <CircleDollarSign className="h-3.5 w-3.5" />
-                  Daily Wages
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Welcome banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <CircleDollarSign className="h-3.5 w-3.5 text-blue-300" />
+
+                  <span className="text-xs font-semibold text-blue-200">
+                    Daily Wages
+                  </span>
                 </div>
 
-                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                  Casual Employee Payroll
-                </h1>
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
 
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                  View and manage weekly payroll for casual
-                  employees.
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+                  Casual Employee Payroll
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  View and manage weekly payroll for casual employees.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={loadData}
-                disabled={loading}
-                className="relative z-10 mt-5 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50 sm:absolute sm:right-8 sm:top-8 sm:mt-0"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${
-                    loading ? "animate-spin" : ""
-                  }`}
-                />
-                Refresh
-              </button>
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={loadData}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </button>
 
-              <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl" />
+                <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                  <CircleDollarSign className="h-8 w-8 text-blue-300" />
+                </div>
+              </div>
             </div>
           </section>
 
@@ -882,9 +871,7 @@ export default function DailyWagesPage() {
             <SummaryCard
               icon={DollarSign}
               label="Total Due"
-              value={formatCurrency(
-                summary?.total_amount_due || 0,
-              )}
+              value={formatCurrency(summary?.total_amount_due || 0)}
               iconClass="bg-blue-50 text-blue-600"
             />
           </section>
@@ -904,13 +891,8 @@ export default function DailyWagesPage() {
                     </p>
 
                     <p className="text-sm text-slate-500">
-                      {formatDateFull(
-                        summary.payroll_period.start_date,
-                      )}{" "}
-                      —{" "}
-                      {formatDateFull(
-                        summary.payroll_period.end_date,
-                      )}
+                      {formatDateFull(summary.payroll_period.start_date)} —{" "}
+                      {formatDateFull(summary.payroll_period.end_date)}
                     </p>
                   </div>
                 </div>
@@ -918,38 +900,26 @@ export default function DailyWagesPage() {
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-slate-700">
-                      {formatCurrency(
-                        summary.total_amount_due || 0,
-                      )}
+                      {formatCurrency(summary.total_amount_due || 0)}
                     </span>
 
-                    <span className="text-slate-400">
-                      due
-                    </span>
+                    <span className="text-slate-400">due</span>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-green-600">
-                      {formatCurrency(
-                        summary.total_amount_paid || 0,
-                      )}
+                      {formatCurrency(summary.total_amount_paid || 0)}
                     </span>
 
-                    <span className="text-green-400">
-                      paid
-                    </span>
+                    <span className="text-green-400">paid</span>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-yellow-600">
-                      {formatCurrency(
-                        summary.total_amount_pending || 0,
-                      )}
+                      {formatCurrency(summary.total_amount_pending || 0)}
                     </span>
 
-                    <span className="text-yellow-400">
-                      pending
-                    </span>
+                    <span className="text-yellow-400">pending</span>
                   </div>
                 </div>
               </div>
@@ -987,9 +957,7 @@ export default function DailyWagesPage() {
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="processing">
-                    Processing
-                  </option>
+                  <option value="processing">Processing</option>
                   <option value="paid">Paid</option>
                   <option value="failed">Failed</option>
                 </select>
@@ -1059,10 +1027,7 @@ export default function DailyWagesPage() {
                 <tbody className="divide-y divide-slate-100">
                   {paginatedPayrolls.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-16 text-center"
-                      >
+                      <td colSpan={7} className="px-4 py-16 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <Users className="h-8 w-8 text-slate-300" />
 
@@ -1071,8 +1036,7 @@ export default function DailyWagesPage() {
                           </p>
 
                           <p className="text-xs text-slate-400">
-                            {searchTerm ||
-                            statusFilter !== "all"
+                            {searchTerm || statusFilter !== "all"
                               ? "Try adjusting your filters"
                               : "No casual employees have been processed yet"}
                           </p>
@@ -1088,9 +1052,7 @@ export default function DailyWagesPage() {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-600">
-                              {payroll.employee_name
-                                .charAt(0)
-                                .toUpperCase()}
+                              {payroll.employee_name.charAt(0).toUpperCase()}
                             </div>
 
                             <span className="font-semibold text-slate-900">
@@ -1105,9 +1067,7 @@ export default function DailyWagesPage() {
 
                         <td className="px-5 py-4 text-slate-600">
                           {payroll.days_worked} day
-                          {payroll.days_worked !== 1
-                            ? "s"
-                            : ""}
+                          {payroll.days_worked !== 1 ? "s" : ""}
                         </td>
 
                         <td className="px-5 py-4 text-slate-600">
@@ -1119,24 +1079,16 @@ export default function DailyWagesPage() {
                         </td>
 
                         <td className="px-5 py-4 text-center">
-                          {getStatusBadge(
-                            payroll.payment_status,
-                          )}
+                          {getStatusBadge(payroll.payment_status)}
                         </td>
 
                         <td className="px-5 py-4 text-center">
-                          {payroll.payment_status ===
-                            "pending" ||
-                          payroll.payment_status ===
-                            "processing" ? (
+                          {payroll.payment_status === "pending" ||
+                          payroll.payment_status === "processing" ? (
                             <button
                               type="button"
-                              onClick={() =>
-                                setShowMpesaModal(payroll.id)
-                              }
-                              disabled={
-                                isPaying === payroll.id
-                              }
+                              onClick={() => setShowMpesaModal(payroll.id)}
+                              disabled={isPaying === payroll.id}
                               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
                             >
                               {isPaying === payroll.id ? (
@@ -1147,8 +1099,7 @@ export default function DailyWagesPage() {
 
                               Pay
                             </button>
-                          ) : payroll.payment_status ===
-                            "paid" ? (
+                          ) : payroll.payment_status === "paid" ? (
                             <span className="text-xs font-medium text-green-600">
                               ✓ Paid
                             </span>
@@ -1181,9 +1132,7 @@ export default function DailyWagesPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setCurrentPage((page) =>
-                        Math.max(1, page - 1),
-                      )
+                      setCurrentPage((page) => Math.max(1, page - 1))
                     }
                     disabled={currentPage === 1}
                     className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1212,9 +1161,7 @@ export default function DailyWagesPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setCurrentPage((page) =>
-                        Math.min(totalPages, page + 1),
-                      )
+                      setCurrentPage((page) => Math.min(totalPages, page + 1))
                     }
                     disabled={currentPage === totalPages}
                     className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1229,17 +1176,13 @@ export default function DailyWagesPage() {
           {/* Footer */}
           <footer className="mt-8 border-t border-slate-200 pt-6">
             <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                © {new Date().getFullYear()} NYUTU LIMITED
-              </p>
+              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
 
-              <p>
-                Management Portal · Manager Access
-              </p>
+              <p>Management Portal · Manager Access</p>
             </div>
           </footer>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
@@ -1259,9 +1202,7 @@ function SummaryCard({
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
 
           <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
             {value}

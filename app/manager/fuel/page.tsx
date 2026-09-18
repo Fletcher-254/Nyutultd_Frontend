@@ -25,7 +25,6 @@ import {
   FileText,
   CheckCircle,
   BarChart3,
-  PieChart,
   Activity,
   Droplet,
   Wallet,
@@ -106,41 +105,13 @@ interface Module {
 }
 
 const modules: Module[] = [
-  {
-    name: "Employees",
-    href: "/manager/employees",
-    icon: Users,
-  },
-  {
-    name: "Attendance",
-    href: "/manager/attendance",
-    icon: CalendarCheck,
-  },
-  {
-    name: "Daily Wages",
-    href: "/manager/daily-wages",
-    icon: CircleDollarSign,
-  },
-  {
-    name: "Vehicles",
-    href: "/manager/vehicles",
-    icon: Truck,
-  },
-  {
-    name: "Fuel",
-    href: "/manager/fuel",
-    icon: Fuel,
-  },
-  {
-    name: "Vendors",
-    href: "/manager/vendors",
-    icon: Store,
-  },
-  {
-    name: "Expenses",
-    href: "/manager/expenses",
-    icon: Receipt,
-  },
+  { name: "Employees", href: "/manager/employees", icon: Users },
+  { name: "Attendance", href: "/manager/attendance", icon: CalendarCheck },
+  { name: "Daily Wages", href: "/manager/daily-wages", icon: CircleDollarSign },
+  { name: "Vehicles", href: "/manager/vehicles", icon: Truck },
+  { name: "Fuel", href: "/manager/fuel", icon: Fuel },
+  { name: "Vendors", href: "/manager/vendors", icon: Store },
+  { name: "Expenses", href: "/manager/expenses", icon: Receipt },
 ];
 
 function formatCurrency(value: number | string) {
@@ -160,16 +131,9 @@ function formatNumber(value: number | string | null | undefined) {
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
+  if (!value) return "—";
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-KE", {
     day: "2-digit",
     month: "short",
@@ -178,16 +142,9 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatDateFull(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
+  if (!value) return "—";
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-KE", {
     weekday: "long",
     day: "2-digit",
@@ -197,10 +154,7 @@ function formatDateFull(value: string | null | undefined) {
 }
 
 function extractArray<T>(data: unknown): T[] {
-  if (Array.isArray(data)) {
-    return data as T[];
-  }
-
+  if (Array.isArray(data)) return data as T[];
   if (
     data &&
     typeof data === "object" &&
@@ -209,7 +163,6 @@ function extractArray<T>(data: unknown): T[] {
   ) {
     return (data as { results: T[] }).results;
   }
-
   return [];
 }
 
@@ -225,18 +178,13 @@ export default function ManagerFuelPage() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const [me, setMe] = useState<Me | null>(null);
-
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   const [purchases, setPurchases] = useState<FuelPurchase[]>([]);
   const [issues, setIssues] = useState<FuelIssue[]>([]);
-  const [dailySummary, setDailySummary] = useState<FuelSummary | null>(
-    null
-  );
-  const [monthlySummary, setMonthlySummary] =
-    useState<FuelSummary | null>(null);
-  const [reconciliation, setReconciliation] =
-    useState<FuelReconciliation | null>(null);
+  const [dailySummary, setDailySummary] = useState<FuelSummary | null>(null);
+  const [monthlySummary, setMonthlySummary] = useState<FuelSummary | null>(null);
+  const [reconciliation, setReconciliation] = useState<FuelReconciliation | null>(null);
   const [efficiency, setEfficiency] = useState<VehicleEfficiency[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -246,13 +194,9 @@ export default function ManagerFuelPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [selectedItem, setSelectedItem] = useState<
-    FuelPurchase | FuelIssue | null
-  >(null);
+  const [selectedItem, setSelectedItem] = useState<FuelPurchase | FuelIssue | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [detailType, setDetailType] = useState<"purchase" | "issue" | null>(
-    null
-  );
+  const [detailType, setDetailType] = useState<"purchase" | "issue" | null>(null);
 
   const navigate = (href: string) => {
     setMobileOpen(false);
@@ -260,10 +204,7 @@ export default function ManagerFuelPage() {
   };
 
   const isActive = (href: string) => {
-    if (href === "/manager/dashboard") {
-      return pathname === href;
-    }
-
+    if (href === "/manager/dashboard") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -286,19 +227,13 @@ export default function ManagerFuelPage() {
 
       if (!response.ok) {
         let message = `Request failed with status ${response.status}.`;
-
         try {
           const data = await response.json();
-
-          if (typeof data?.detail === "string") {
-            message = data.detail;
-          } else if (typeof data?.error === "string") {
-            message = data.error;
-          }
+          if (typeof data?.detail === "string") message = data.detail;
+          else if (typeof data?.error === "string") message = data.error;
         } catch {
           // Keep the default error message.
         }
-
         throw new Error(message);
       }
 
@@ -309,11 +244,8 @@ export default function ManagerFuelPage() {
 
   const loadData = useCallback(
     async (showRefreshSpinner = false) => {
-      if (showRefreshSpinner) {
-        setLoggingRefresh(true);
-      } else {
-        setLoading(true);
-      }
+      if (showRefreshSpinner) setLoggingRefresh(true);
+      else setLoading(true);
 
       setError("");
 
@@ -340,12 +272,10 @@ export default function ManagerFuelPage() {
           router.replace("/admin/dashboard");
           return;
         }
-
         if (meData.role === "director") {
           router.replace("/director/dashboard");
           return;
         }
-
         if (meData.role !== "manager") {
           router.replace("/");
           return;
@@ -356,28 +286,17 @@ export default function ManagerFuelPage() {
         setIssues(extractArray<FuelIssue>(issuesData));
 
         setDailySummary(
-          Array.isArray(dailyData)
-            ? dailyData[0] || null
-            : dailyData || null
+          Array.isArray(dailyData) ? dailyData[0] || null : dailyData || null
         );
-
         setMonthlySummary(
-          Array.isArray(monthlyData)
-            ? monthlyData[0] || null
-            : monthlyData || null
+          Array.isArray(monthlyData) ? monthlyData[0] || null : monthlyData || null
         );
 
         setReconciliation(reconciliationData);
-
-        setEfficiency(
-          extractArray<VehicleEfficiency>(efficiencyData)
-        );
+        setEfficiency(extractArray<VehicleEfficiency>(efficiencyData));
       } catch (err) {
-        if (err instanceof Error && err.message) {
-          setError(err.message);
-        } else {
-          setError("Unable to load fuel information.");
-        }
+        if (err instanceof Error && err.message) setError(err.message);
+        else setError("Unable to load fuel information.");
       } finally {
         setLoading(false);
         setLoggingRefresh(false);
@@ -396,54 +315,25 @@ export default function ManagerFuelPage() {
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-
-    if (hour < 12) {
-      return "Good morning";
-    }
-
-    if (hour < 17) {
-      return "Good afternoon";
-    }
-
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
     return "Good evening";
   }, []);
 
   const firstName =
-    me?.first_name?.trim() ||
-    me?.email?.split("@")[0] ||
-    "Manager";
+    me?.first_name?.trim() || me?.email?.split("@")[0] || "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
-    firstName;
-
-  const initials = useMemo(() => {
-    const names = fullName
-      .split(" ")
-      .map((name) => name.trim())
-      .filter(Boolean);
-
-    if (names.length >= 2) {
-      return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase();
-    }
-
-    return firstName.charAt(0).toUpperCase();
-  }, [fullName, firstName]);
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
 
   const handleLogout = async () => {
-    if (loggingOut) {
-      return;
-    }
-
+    if (loggingOut) return;
     setLoggingOut(true);
-
     try {
       await fetch(`${API_URL}/logout/`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
       });
     } catch {
       // Even if the logout request fails, leave the dashboard.
@@ -482,84 +372,57 @@ export default function ManagerFuelPage() {
 
   const filteredPurchases = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-
-    if (!term) {
-      return purchases;
-    }
-
-    return purchases.filter((purchase) => {
-      return (
+    if (!term) return purchases;
+    return purchases.filter(
+      (purchase) =>
         purchase.supplier?.toLowerCase().includes(term) ||
         purchase.receipt_reference?.toLowerCase().includes(term) ||
         purchase.fuel_date?.toLowerCase().includes(term)
-      );
-    });
+    );
   }, [purchases, searchTerm]);
 
   const filteredIssues = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-
-    if (!term) {
-      return issues;
-    }
-
-    return issues.filter((issue) => {
-      return (
+    if (!term) return issues;
+    return issues.filter(
+      (issue) =>
         issue.vehicle_name?.toLowerCase().includes(term) ||
         String(issue.vehicle).toLowerCase().includes(term) ||
         issue.remarks?.toLowerCase().includes(term) ||
         issue.fuel_date?.toLowerCase().includes(term)
-      );
-    });
+    );
   }, [issues, searchTerm]);
 
   const filteredEfficiency = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-
-    if (!term) {
-      return efficiency;
-    }
-
-    return efficiency.filter((item) => {
-      return (
+    if (!term) return efficiency;
+    return efficiency.filter(
+      (item) =>
         String(item.vehicle).toLowerCase().includes(term) ||
         item.operator?.toLowerCase().includes(term) ||
         item.unit?.toLowerCase().includes(term)
-      );
-    });
+    );
   }, [efficiency, searchTerm]);
 
   const paginatedPurchases = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-
     return filteredPurchases.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredPurchases, currentPage]);
 
   const paginatedIssues = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-
     return filteredIssues.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredIssues, currentPage]);
 
   const paginatedEfficiency = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-
     return filteredEfficiency.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredEfficiency, currentPage]);
 
   const currentTotal = useMemo(() => {
-    if (activeTab === "purchases") {
-      return filteredPurchases.length;
-    }
-
-    if (activeTab === "issues") {
-      return filteredIssues.length;
-    }
-
-    if (activeTab === "efficiency") {
-      return filteredEfficiency.length;
-    }
-
+    if (activeTab === "purchases") return filteredPurchases.length;
+    if (activeTab === "issues") return filteredIssues.length;
+    if (activeTab === "efficiency") return filteredEfficiency.length;
     return 0;
   }, [
     activeTab,
@@ -568,10 +431,7 @@ export default function ManagerFuelPage() {
     filteredEfficiency.length,
   ]);
 
-  const totalPages = Math.max(
-    Math.ceil(currentTotal / ITEMS_PER_PAGE),
-    1
-  );
+  const totalPages = Math.max(Math.ceil(currentTotal / ITEMS_PER_PAGE), 1);
 
   const openPurchase = (purchase: FuelPurchase) => {
     setSelectedItem(purchase);
@@ -593,19 +453,9 @@ export default function ManagerFuelPage() {
 
   const getEfficiencyColor = (value: number | string | null | undefined) => {
     const number = Number(value || 0);
-
-    if (number >= 10) {
-      return "text-emerald-600 bg-emerald-50";
-    }
-
-    if (number >= 5) {
-      return "text-amber-600 bg-amber-50";
-    }
-
-    if (number > 0) {
-      return "text-red-600 bg-red-50";
-    }
-
+    if (number >= 10) return "text-emerald-600 bg-emerald-50";
+    if (number >= 5) return "text-amber-600 bg-amber-50";
+    if (number > 0) return "text-red-600 bg-red-50";
     return "text-slate-500 bg-slate-50";
   };
 
@@ -621,9 +471,7 @@ export default function ManagerFuelPage() {
             Loading fuel management...
           </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Verifying secure access
-          </p>
+          <p className="mt-1 text-sm text-slate-500">Verifying secure access</p>
         </div>
       </div>
     );
@@ -641,9 +489,7 @@ export default function ManagerFuelPage() {
             Unable to load fuel information
           </h2>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {error}
-          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
 
           <button
             type="button"
@@ -660,7 +506,6 @@ export default function ManagerFuelPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Mobile overlay */}
       {mobileOpen && (
         <button
           type="button"
@@ -676,7 +521,6 @@ export default function ManagerFuelPage() {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Brand */}
         <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
             type="button"
@@ -708,7 +552,6 @@ export default function ManagerFuelPage() {
           </button>
         </div>
 
-        {/* Navigation */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
           <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
             Main Menu
@@ -764,20 +607,17 @@ export default function ManagerFuelPage() {
 
                   <span className="flex-1">{module.name}</span>
 
-                  {active && (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Account / Sign Out */}
         <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-              {initials}
+              {firstName.charAt(0).toUpperCase()}
             </div>
 
             <div className="min-w-0 flex-1">
@@ -822,7 +662,6 @@ export default function ManagerFuelPage() {
 
       {/* Main */}
       <main className="min-h-screen lg:pl-72">
-        {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
@@ -858,14 +697,14 @@ export default function ManagerFuelPage() {
               <div className="hidden h-10 w-px bg-slate-200 sm:block" />
 
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
-                {initials}
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
         <div className="px-4 py-6 sm:px-6 lg:px-8">
-          {/* Welcome section */}
+          {/* Welcome banner */}
           <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-3xl">
@@ -896,7 +735,7 @@ export default function ManagerFuelPage() {
                   type="button"
                   onClick={() => loadData(true)}
                   disabled={loggingRefresh}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <RefreshCw
                     className={`h-4 w-4 ${
@@ -906,7 +745,7 @@ export default function ManagerFuelPage() {
                   {loggingRefresh ? "Refreshing..." : "Refresh"}
                 </button>
 
-                <div className="hidden h-16 w-16 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
                   <Fuel className="h-8 w-8 text-blue-300" />
                 </div>
               </div>
@@ -1026,7 +865,6 @@ export default function ManagerFuelPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Daily */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div>
@@ -1057,10 +895,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        dailySummary?.fuel_purchased_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(dailySummary?.fuel_purchased_litres || 0)} L
                     </p>
                   </div>
 
@@ -1070,10 +905,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        dailySummary?.fuel_issued_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(dailySummary?.fuel_issued_litres || 0)} L
                     </p>
                   </div>
 
@@ -1083,10 +915,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        dailySummary?.fuel_remaining_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(dailySummary?.fuel_remaining_litres || 0)} L
                     </p>
                   </div>
 
@@ -1102,7 +931,6 @@ export default function ManagerFuelPage() {
                 </div>
               </div>
 
-              {/* Monthly */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div>
@@ -1131,10 +959,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        monthlySummary?.fuel_purchased_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(monthlySummary?.fuel_purchased_litres || 0)} L
                     </p>
                   </div>
 
@@ -1144,10 +969,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        monthlySummary?.fuel_issued_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(monthlySummary?.fuel_issued_litres || 0)} L
                     </p>
                   </div>
 
@@ -1157,10 +979,7 @@ export default function ManagerFuelPage() {
                     </p>
 
                     <p className="mt-2 text-lg font-black text-slate-950">
-                      {formatNumber(
-                        monthlySummary?.fuel_remaining_litres || 0
-                      )}{" "}
-                      L
+                      {formatNumber(monthlySummary?.fuel_remaining_litres || 0)} L
                     </p>
                   </div>
 
@@ -1208,10 +1027,7 @@ export default function ManagerFuelPage() {
                   </p>
 
                   <p className="mt-1 text-sm font-black text-blue-950">
-                    {formatNumber(
-                      reconciliation?.total_fuel_purchased || 0
-                    )}{" "}
-                    L
+                    {formatNumber(reconciliation?.total_fuel_purchased || 0)} L
                   </p>
                 </div>
 
@@ -1221,10 +1037,7 @@ export default function ManagerFuelPage() {
                   </p>
 
                   <p className="mt-1 text-sm font-black text-orange-950">
-                    {formatNumber(
-                      reconciliation?.total_fuel_issued || 0
-                    )}{" "}
-                    L
+                    {formatNumber(reconciliation?.total_fuel_issued || 0)} L
                   </p>
                 </div>
 
@@ -1234,10 +1047,7 @@ export default function ManagerFuelPage() {
                   </p>
 
                   <p className="mt-1 text-sm font-black text-emerald-950">
-                    {formatNumber(
-                      reconciliation?.expected_fuel_balance || 0
-                    )}{" "}
-                    L
+                    {formatNumber(reconciliation?.expected_fuel_balance || 0)} L
                   </p>
                 </div>
 
@@ -1247,9 +1057,7 @@ export default function ManagerFuelPage() {
                   </p>
 
                   <p className="mt-1 text-sm font-black text-violet-950">
-                    {formatCurrency(
-                      reconciliation?.total_purchase_cost || 0
-                    )}
+                    {formatCurrency(reconciliation?.total_purchase_cost || 0)}
                   </p>
                 </div>
               </div>
@@ -1318,7 +1126,6 @@ export default function ManagerFuelPage() {
           {/* Overview */}
           {activeTab === "overview" && (
             <section className="space-y-6">
-              {/* Recent purchases */}
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-4 border-b border-slate-100 p-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -1410,10 +1217,7 @@ export default function ManagerFuelPage() {
 
                       {purchases.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={5}
-                            className="px-6 py-12 text-center"
-                          >
+                          <td colSpan={5} className="px-6 py-12 text-center">
                             <Droplet className="mx-auto h-8 w-8 text-slate-300" />
 
                             <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -1431,7 +1235,6 @@ export default function ManagerFuelPage() {
                 </div>
               </div>
 
-              {/* Recent issues */}
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-4 border-b border-slate-100 p-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -1492,8 +1295,7 @@ export default function ManagerFuelPage() {
 
                           <td className="px-6 py-4">
                             <p className="text-sm font-semibold text-slate-900">
-                              {issue.vehicle_name ||
-                                `Vehicle ${issue.vehicle}`}
+                              {issue.vehicle_name || `Vehicle ${issue.vehicle}`}
                             </p>
 
                             <p className="mt-0.5 text-xs text-slate-400">
@@ -1524,10 +1326,7 @@ export default function ManagerFuelPage() {
 
                       {issues.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={5}
-                            className="px-6 py-12 text-center"
-                          >
+                          <td colSpan={5} className="px-6 py-12 text-center">
                             <Fuel className="mx-auto h-8 w-8 text-slate-300" />
 
                             <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -1572,9 +1371,7 @@ export default function ManagerFuelPage() {
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(event) =>
-                        setSearchTerm(event.target.value)
-                      }
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Search purchases..."
                       className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
                     />
@@ -1662,10 +1459,7 @@ export default function ManagerFuelPage() {
 
                     {paginatedPurchases.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-6 py-14 text-center"
-                        >
+                        <td colSpan={6} className="px-6 py-14 text-center">
                           <Search className="mx-auto h-8 w-8 text-slate-300" />
 
                           <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -1762,9 +1556,7 @@ export default function ManagerFuelPage() {
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(event) =>
-                        setSearchTerm(event.target.value)
-                      }
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Search issues..."
                       className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
                     />
@@ -1814,8 +1606,7 @@ export default function ManagerFuelPage() {
 
                         <td className="px-6 py-4">
                           <p className="text-sm font-semibold text-slate-900">
-                            {issue.vehicle_name ||
-                              `Vehicle ${issue.vehicle}`}
+                            {issue.vehicle_name || `Vehicle ${issue.vehicle}`}
                           </p>
 
                           <p className="mt-0.5 text-xs text-slate-400">
@@ -1852,10 +1643,7 @@ export default function ManagerFuelPage() {
 
                     {paginatedIssues.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-6 py-14 text-center"
-                        >
+                        <td colSpan={6} className="px-6 py-14 text-center">
                           <Search className="mx-auto h-8 w-8 text-slate-300" />
 
                           <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -1942,8 +1730,7 @@ export default function ManagerFuelPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Review distance travelled and fuel consumption by
-                      vehicle.
+                      Review distance travelled and fuel consumption by vehicle.
                     </p>
                   </div>
 
@@ -1953,9 +1740,7 @@ export default function ManagerFuelPage() {
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(event) =>
-                        setSearchTerm(event.target.value)
-                      }
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       placeholder="Search vehicles..."
                       className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
                     />
@@ -1999,9 +1784,7 @@ export default function ManagerFuelPage() {
 
                   <tbody>
                     {paginatedEfficiency.map((item, index) => {
-                      const efficiencyValue = Number(
-                        item.fuel_efficiency || 0
-                      );
+                      const efficiencyValue = Number(item.fuel_efficiency || 0);
 
                       return (
                         <tr
@@ -2055,9 +1838,7 @@ export default function ManagerFuelPage() {
                               )}`}
                             >
                               {efficiencyValue > 0
-                                ? `${formatNumber(
-                                    efficiencyValue
-                                  )} ${
+                                ? `${formatNumber(efficiencyValue)} ${
                                     item.unit || "km/L"
                                   }`
                                 : "—"}
@@ -2069,10 +1850,7 @@ export default function ManagerFuelPage() {
 
                     {paginatedEfficiency.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={7}
-                          className="px-6 py-14 text-center"
-                        >
+                        <td colSpan={7} className="px-6 py-14 text-center">
                           <Gauge className="mx-auto h-8 w-8 text-slate-300" />
 
                           <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -2162,9 +1940,7 @@ export default function ManagerFuelPage() {
                     {fullName}
                   </h2>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    {me?.email}
-                  </p>
+                  <p className="mt-1 text-sm text-slate-500">{me?.email}</p>
                 </div>
               </div>
 
@@ -2181,10 +1957,8 @@ export default function ManagerFuelPage() {
 
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-medium text-emerald-700">
                   <CheckCircle className="h-4 w-4" />
-                  {formatNumber(
-                    reconciliation?.expected_fuel_balance || 0
-                  )}{" "}
-                  L balance
+                  {formatNumber(reconciliation?.expected_fuel_balance || 0)} L
+                  balance
                 </div>
               </div>
             </div>
@@ -2213,14 +1987,11 @@ export default function ManagerFuelPage() {
             className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            {/* Modal header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    detailType === "purchase"
-                      ? "bg-blue-50"
-                      : "bg-orange-50"
+                    detailType === "purchase" ? "bg-blue-50" : "bg-orange-50"
                   }`}
                 >
                   {detailType === "purchase" ? (
@@ -2252,88 +2023,86 @@ export default function ManagerFuelPage() {
               </button>
             </div>
 
-            {/* Modal body */}
             <div className="p-6">
-              {detailType === "purchase" &&
-                "supplier" in selectedItem && (
-                  <div className="space-y-4">
-                    <div className="rounded-xl bg-slate-50 p-4">
+              {detailType === "purchase" && "supplier" in selectedItem && (
+                <div className="space-y-4">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Supplier
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-slate-900">
+                      {selectedItem.supplier || "—"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-100 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Supplier
+                        Fuel Date
                       </p>
 
-                      <p className="mt-1 text-sm font-bold text-slate-900">
-                        {selectedItem.supplier || "—"}
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        {formatDateFull(selectedItem.fuel_date)}
                       </p>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-slate-100 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Fuel Date
-                        </p>
-
-                        <p className="mt-1 text-sm font-semibold text-slate-800">
-                          {formatDateFull(selectedItem.fuel_date)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Litres
-                        </p>
-
-                        <p className="mt-1 text-sm font-bold text-slate-900">
-                          {formatNumber(selectedItem.litres)} L
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-slate-100 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Cost
-                        </p>
-
-                        <p className="mt-1 text-sm font-bold text-slate-900">
-                          {formatCurrency(selectedItem.cost)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Receipt Reference
-                        </p>
-
-                        <p className="mt-1 text-sm font-semibold text-slate-800">
-                          {selectedItem.receipt_reference || "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {selectedItem.receipt_file && (
-                      <a
-                        href={selectedItem.receipt_file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-                      >
-                        <FileText className="h-4 w-4" />
-                        View Receipt
-                      </a>
-                    )}
 
                     <div className="rounded-xl border border-slate-100 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Recorded
+                        Litres
                       </p>
 
-                      <p className="mt-1 text-sm text-slate-600">
-                        {formatDateFull(selectedItem.created_at)}
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {formatNumber(selectedItem.litres)} L
                       </p>
                     </div>
                   </div>
-                )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-100 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Cost
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {formatCurrency(selectedItem.cost)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Receipt Reference
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        {selectedItem.receipt_reference || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedItem.receipt_file && (
+                    <a
+                      href={selectedItem.receipt_file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View Receipt
+                    </a>
+                  )}
+
+                  <div className="rounded-xl border border-slate-100 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Recorded
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-600">
+                      {formatDateFull(selectedItem.created_at)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {detailType === "issue" && "vehicle" in selectedItem && (
                 <div className="space-y-4">
@@ -2407,7 +2176,6 @@ export default function ManagerFuelPage() {
               )}
             </div>
 
-            {/* Modal footer */}
             <div className="border-t border-slate-100 bg-slate-50 px-6 py-4">
               <button
                 type="button"

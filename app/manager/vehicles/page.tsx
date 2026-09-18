@@ -9,7 +9,9 @@ import {
   CalendarCheck,
   Truck,
   Fuel,
+  CircleDollarSign,
   Store,
+  Receipt,
   LogOut,
   Menu,
   X,
@@ -68,7 +70,7 @@ if (!API_URL) {
   throw new Error("NEXT_PUBLIC_API_URL is not configured.");
 }
 
-export default function VehiclesPage() {
+export default function ManagerVehiclesPage() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -79,19 +81,21 @@ export default function VehiclesPage() {
 
   const menu = useMemo(
     () => [
-      { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-      { label: "Employees", icon: Users, path: "/admin/employees" },
-      { label: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-      { label: "Vehicles", icon: Truck, path: "/admin/vehicles" },
-      { label: "Fuel", icon: Fuel, path: "/admin/fuel" },
-      { label: "Vendors", icon: Store, path: "/admin/vendors" },
+      { label: "Dashboard", icon: LayoutDashboard, path: "/manager/dashboard" },
+      { label: "Employees", icon: Users, path: "/manager/employees" },
+      { label: "Attendance", icon: CalendarCheck, path: "/manager/attendance" },
+      { label: "Daily Wages", icon: CircleDollarSign, path: "/manager/daily-wages" },
+      { label: "Vehicles", icon: Truck, path: "/manager/vehicles" },
+      { label: "Fuel", icon: Fuel, path: "/manager/fuel" },
+      { label: "Vendors", icon: Store, path: "/manager/vendors" },
+      { label: "Expenses", icon: Receipt, path: "/manager/expenses" },
     ],
     []
   );
 
   const isActive = (path: string) => {
-    if (path === "/admin/dashboard") {
-      return pathname === "/admin/dashboard" || pathname === "/dashboard";
+    if (path === "/manager/dashboard") {
+      return pathname === "/manager/dashboard";
     }
     return pathname === path || pathname.startsWith(`${path}/`);
   };
@@ -159,20 +163,34 @@ export default function VehiclesPage() {
       }
 
       const userData: UserProfile = await meResponse.json();
+
+      const role = userData.role?.trim().toLowerCase();
+
+      if (role === "admin") {
+        router.replace("/admin/dashboard");
+        return;
+      }
+
+      if (role === "director") {
+        router.replace("/director/dashboard");
+        return;
+      }
+
       setUser(userData);
 
       const now = new Date();
       const hour = now.getHours();
-      if (hour < 12) setGreeting("Good Morning");
-      else if (hour < 17) setGreeting("Good Afternoon");
-      else setGreeting("Good Evening");
+      if (hour < 12) setGreeting("Good morning");
+      else if (hour < 17) setGreeting("Good afternoon");
+      else setGreeting("Good evening");
+
       setToday(
-        now.toLocaleDateString("en-KE", {
+        new Intl.DateTimeFormat("en-KE", {
           weekday: "long",
-          year: "numeric",
-          month: "long",
           day: "numeric",
-        })
+          month: "long",
+          year: "numeric",
+        }).format(now)
       );
 
       const vehiclesResponse = await authenticatedFetch(`${API_URL}/vehicles/`, {
@@ -207,7 +225,7 @@ export default function VehiclesPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [authenticatedFetch]);
+  }, [authenticatedFetch, router]);
 
   useEffect(() => {
     loadVehiclesPage();
@@ -456,23 +474,28 @@ export default function VehiclesPage() {
   }
 
   const firstName =
-    user?.first_name?.trim() || user?.email?.split("@")[0] || "Administrator";
+    user?.first_name?.trim() || user?.email?.split("@")[0] || "Manager";
 
   const fullName =
     `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || firstName;
 
+  const initials =
+    `${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`.toUpperCase() ||
+    firstName.slice(0, 2).toUpperCase();
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center">
-          <div className="relative h-12 w-12">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-blue-600" />
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <RefreshCw className="h-7 w-7 animate-spin text-white" />
           </div>
-          <p className="mt-5 text-sm font-medium text-slate-600">
+
+          <h2 className="text-lg font-semibold text-slate-900">
             Loading vehicles...
-          </p>
-          <p className="mt-1 text-xs text-slate-400">Retrieving fleet data</p>
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">Retrieving fleet data</p>
         </div>
       </div>
     );
@@ -485,158 +508,203 @@ export default function VehiclesPage() {
           type="button"
           aria-label="Close navigation"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
             type="button"
-            onClick={() => navigate("/admin/dashboard")}
+            onClick={() => navigate("/manager/dashboard")}
             className="flex items-center gap-3"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 text-lg font-black text-white shadow-lg shadow-blue-600/20">
-              N
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">N</span>
             </div>
+
             <div className="text-left">
               <p className="text-sm font-bold tracking-wide text-white">
-                NYUTU LIMITED
+                NYUTU LTD
               </p>
-              <p className="mt-0.5 text-[9px] font-medium tracking-[0.2em] text-slate-500">
+
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
               </p>
             </div>
           </button>
+
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-800 hover:text-white lg:hidden"
-            aria-label="Close menu"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
-            <X size={20} />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-            Management
-          </p>
-          <nav className="space-y-1">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
+
+          <nav className="space-y-1.5">
             {menu.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
+
               return (
                 <button
                   key={item.label}
                   type="button"
                   onClick={() => navigate(item.path)}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all ${
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
                     active
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                      : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  <Icon size={18} strokeWidth={active ? 2.4 : 2} />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {active && <ChevronRight size={15} className="opacity-70" />}
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
+
+                  <span className="flex-1">{item.label}</span>
+
+                  {active && <ChevronRight className="h-4 w-4" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <div className="border-t border-slate-800 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-sm font-bold text-blue-400">
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
               {firstName.charAt(0).toUpperCase()}
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-white">
+              <p className="truncate text-sm font-semibold text-white">
                 {fullName}
               </p>
-              <p className="truncate text-[10px] text-slate-500">
-                {user?.role || "Administrator"}
+
+              <p className="truncate text-xs text-slate-400">
+                {user?.email || "Manager"}
               </p>
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
+              </div>
             </div>
           </div>
+
           <button
             type="button"
             onClick={logout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut size={18} />
-            <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
+            {loggingOut ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
+            )}
           </button>
         </div>
       </aside>
 
-      <div className="min-h-screen lg:pl-72">
+      {/* Main */}
+      <main className="min-h-screen lg:pl-72">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm hover:bg-slate-50 lg:hidden"
-                aria-label="Open menu"
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
               >
-                <Menu size={20} />
+                <Menu className="h-5 w-5" />
               </button>
+
               <div>
-                <p className="hidden text-xs font-medium text-slate-400 sm:block">
-                  {today}
+                <p className="text-sm font-medium text-slate-500">
+                  {greeting}
                 </p>
+
                 <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
-                  {greeting}, {firstName}
+                  {firstName}
                 </h1>
               </div>
             </div>
+
             <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 sm:flex">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                <span className="text-xs font-semibold text-emerald-700">
                   System Online
                 </span>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-sm font-bold text-white shadow-md shadow-blue-600/20">
+
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
                 {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-6 shadow-xl sm:p-8">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-            <div className="absolute -bottom-32 right-32 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl" />
-            <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-center">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5">
-                  <ShieldCheck size={13} className="text-blue-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Welcome banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <Truck className="h-3.5 w-3.5 text-blue-300" />
+
+                  <span className="text-xs font-semibold text-blue-200">
                     Fleet Management
                   </span>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
                   Vehicles
                 </h2>
-                <p className="mt-2 max-w-lg text-sm leading-relaxed text-slate-400">
-                  Manage company vehicles, track odometer readings, and monitor fleet status.
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  Manage company vehicles, track odometer readings, and monitor
+                  fleet status.
                 </p>
               </div>
-              <div className="hidden md:block">
-                <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-white/5">
-                  <Truck size={34} className="text-blue-400" />
-                </div>
+
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                <Truck className="h-8 w-8 text-blue-300" />
               </div>
             </div>
           </section>
@@ -664,6 +732,7 @@ export default function VehiclesPage() {
             </div>
           )}
 
+          {/* Stats */}
           <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
@@ -705,6 +774,7 @@ export default function VehiclesPage() {
             </div>
           </div>
 
+          {/* Search + Actions */}
           <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="relative flex-1">
@@ -714,7 +784,7 @@ export default function VehiclesPage() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search by asset identifier, operator, or remarks..."
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
               <div className="flex flex-wrap gap-3">
@@ -739,6 +809,7 @@ export default function VehiclesPage() {
             </div>
           </div>
 
+          {/* Table */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
@@ -757,18 +828,9 @@ export default function VehiclesPage() {
                 <h3 className="font-semibold">No vehicles found</h3>
                 <p className="mt-1 max-w-md text-sm text-slate-500">
                   {vehicles.length === 0
-                    ? "You have not registered any vehicles yet."
+                    ? "No vehicles have been registered yet."
                     : "Try changing your search."}
                 </p>
-                {vehicles.length === 0 && (
-                  <button
-                    onClick={openCreateModal}
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Register Vehicle
-                  </button>
-                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -832,20 +894,6 @@ export default function VehiclesPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => openEditModal(vehicle)}
-                              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                              title="Edit vehicle"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => deleteVehicle(vehicle)}
-                              className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
-                              title="Delete vehicle"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -855,145 +903,19 @@ export default function VehiclesPage() {
               </div>
             )}
           </div>
-        </main>
-      </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[95vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
-              <div>
-                <h2 className="text-lg font-bold">
-                  {editingVehicle ? "Edit Vehicle" : "Register Vehicle"}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {editingVehicle
-                    ? "Update vehicle information"
-                    : "Add a new vehicle to the fleet"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-lg p-2 transition-colors hover:bg-slate-100"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          {/* Footer */}
+          <footer className="mt-8 border-t border-slate-200 pt-6">
+            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+              <p>© {new Date().getFullYear()} NYUTU LIMITED</p>
+
+              <p>Management Portal · Manager Access</p>
             </div>
-
-            <div className="p-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Asset Identifier <span className="ml-1 text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.asset_identifier}
-                    onChange={(e) =>
-                      handleInputChange("asset_identifier", e.target.value)
-                    }
-                    placeholder="e.g. KDJ 123A or Wheel Loader 1"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Assigned Operator
-                  </label>
-                  <input
-                    type="text"
-                    value={form.assigned_operator}
-                    onChange={(e) =>
-                      handleInputChange("assigned_operator", e.target.value)
-                    }
-                    placeholder="Driver or operator name"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Opening Odometer Reading{" "}
-                    <span className="ml-1 text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={form.opening_odometer_reading}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "opening_odometer_reading",
-                        e.target.value
-                      )
-                    }
-                    placeholder="0.0"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Closing Odometer Reading
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={form.closing_odometer_reading}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "closing_odometer_reading",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Leave empty if not closed"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium">
-                    Remarks
-                  </label>
-                  <input
-                    type="text"
-                    value={form.remarks}
-                    onChange={(e) => handleInputChange("remarks", e.target.value)}
-                    placeholder="Optional remarks about the vehicle"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-sm text-blue-700">
-                    <AlertCircle className="mr-2 inline h-4 w-4" />
-                    Closing odometer reading must be greater than or equal to
-                    opening reading.
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-5">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={submitting}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveVehicle}
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submitting && <RefreshCw className="h-4 w-4 animate-spin" />}
-                  {editingVehicle ? "Save Changes" : "Register Vehicle"}
-                </button>
-              </div>
-            </div>
-          </div>
+          </footer>
         </div>
-      )}
+      </main>
 
+      {/* View modal */}
       {selectedVehicle && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
