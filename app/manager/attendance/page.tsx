@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  Receipt,
   ChevronRight,
   ShieldCheck,
   UserCheck,
@@ -97,6 +98,14 @@ const modules: Module[] = [
     href: "/manager/vendors",
     icon: Store,
   },
+
+  {
+    label: "Expenses",
+    href: "/manager/expenses",
+    icon: Receipt,
+  },
+
+
 ];
 
 function extractArray<T>(data: unknown): T[] {
