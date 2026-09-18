@@ -3,37 +3,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
-  CalendarCheck,
-  Truck,
-  Fuel,
-  CircleDollarSign,
-  Store,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  ShieldCheck,
-  Loader2,
   AlertCircle,
-  Search,
-  Filter,
-  ChevronLeft,
-  Eye,
   Building2,
-  Phone,
-  MapPin,
-  User,
+  Calendar,
+  CalendarCheck,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
   CreditCard,
   DollarSign,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Calendar,
+  Eye,
   FileText,
+  Filter,
+  Fuel,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  MapPin,
+  Menu,
+  Phone,
   Receipt,
   RefreshCw,
+  Search,
+  ShieldCheck,
+  Store,
+  Truck,
+  User,
+  Users,
+  X,
+  XCircle,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -102,12 +101,6 @@ const modules: Module[] = [
     icon: Truck,
   },
   {
-    label: "Expenses",
-    href: "/manager/expenses",
-    icon: Receipt,
-  },
-
-  {
     label: "Fuel",
     href: "/manager/fuel",
     icon: Fuel,
@@ -116,6 +109,11 @@ const modules: Module[] = [
     label: "Vendors",
     href: "/manager/vendors",
     icon: Store,
+  },
+  {
+    label: "Expenses",
+    href: "/manager/expenses",
+    icon: Receipt,
   },
 ];
 
@@ -166,6 +164,7 @@ function getGreeting() {
 
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
+
   return "Good evening";
 }
 
@@ -195,7 +194,7 @@ function getBalanceStatus(balance: number | string) {
       label: "Outstanding",
       className:
         "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
-      icon: AlertTriangle,
+      icon: AlertCircle,
     };
   }
 
@@ -230,6 +229,25 @@ export default function VendorsPage() {
 
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const navigate = useCallback(
+    (href: string) => {
+      setMobileOpen(false);
+      router.push(href);
+    },
+    [router]
+  );
+
+  const isActive = useCallback(
+    (href: string) => {
+      if (href === "/manager/dashboard") {
+        return pathname === href;
+      }
+
+      return pathname === href || pathname.startsWith(`${href}/`);
+    },
+    [pathname]
+  );
 
   const authenticatedFetch = useCallback(
     async (endpoint: string, options: RequestInit = {}) => {
@@ -356,23 +374,10 @@ export default function VendorsPage() {
         },
       });
     } catch {
-      // Still redirect even if the logout request fails.
+      // Still redirect even if logout request fails.
     } finally {
       router.replace("/");
     }
-  };
-
-  const navigate = (href: string) => {
-    setMobileOpen(false);
-    router.push(href);
-  };
-
-  const isActive = (href: string) => {
-    if (href === "/manager/dashboard") {
-      return pathname === href;
-    }
-
-    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   const firstName =
@@ -381,7 +386,8 @@ export default function VendorsPage() {
     "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
+    firstName;
 
   const filteredVendors = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -457,7 +463,7 @@ export default function VendorsPage() {
     setShowDetailModal(true);
   };
 
-  if (loading) {
+  if (loading && !me) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center text-center">
@@ -472,32 +478,6 @@ export default function VendorsPage() {
           <p className="mt-1 text-sm text-slate-500">
             Verifying secure access
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-7 w-7 text-red-600" />
-          </div>
-
-          <h2 className="text-lg font-semibold text-slate-900">
-            Unable to load vendors
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
-
-          <button
-            onClick={() => loadData()}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Try Again
-          </button>
         </div>
       </div>
     );
@@ -536,6 +516,7 @@ export default function VendorsPage() {
               <p className="text-sm font-bold tracking-wide text-white">
                 NYUTU LTD
               </p>
+
               <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
               </p>
@@ -609,14 +590,16 @@ export default function VendorsPage() {
 
                   <span className="flex-1">{module.label}</span>
 
-                  {active && <ChevronRight className="h-4 w-4" />}
+                  {active && (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Account / Sign Out — permanently visible at bottom */}
+        {/* Account / Sign Out */}
         <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
           <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
@@ -634,6 +617,7 @@ export default function VendorsPage() {
 
               <div className="mt-1 flex items-center gap-1.5">
                 <ShieldCheck className="h-3 w-3 text-emerald-400" />
+
                 <span className="text-[10px] font-medium text-emerald-400">
                   Manager Account
                 </span>
@@ -648,17 +632,21 @@ export default function VendorsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
             ) : (
-              <LogOut className="h-4 w-4" />
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
             )}
-
-            <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="min-h-screen lg:pl-72">
         {/* Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -687,6 +675,7 @@ export default function VendorsPage() {
             <div className="flex items-center gap-3">
               <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
                 <span className="text-xs font-semibold text-emerald-700">
                   System Online
                 </span>
@@ -714,201 +703,147 @@ export default function VendorsPage() {
 
             <ChevronRight className="h-4 w-4 text-slate-300" />
 
-            <span className="font-semibold text-slate-700">Vendors</span>
+            <span className="font-semibold text-slate-700">
+              Vendors
+            </span>
           </div>
 
-          {/* Page heading */}
-          <section className="mb-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
-                    <Store className="h-5 w-5 text-blue-600" />
-                  </div>
+          {/* Welcome banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <Store className="h-3.5 w-3.5 text-blue-300" />
 
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-                    Operations
+                  <span className="text-xs font-semibold text-blue-200">
+                    Vendor Management
                   </span>
                 </div>
 
-                <h2 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                <p className="text-sm font-medium text-slate-400">
+                  {getGreeting()}, {firstName}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
                   Vendors
                 </h2>
 
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                  Manage and review the company&apos;s vendor relationships,
-                  services, and outstanding balances.
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  Review vendor relationships, services, transactions,
+                  payments, and outstanding balances.
                 </p>
+              </div>
+
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                <Store className="h-8 w-8 text-blue-300" />
+              </div>
+            </div>
+          </section>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
+              <div className="flex-1">
+                <p className="font-semibold text-red-800">
+                  Unable to load vendors
+                </p>
+
+                <p className="mt-1 text-sm text-red-700">{error}</p>
               </div>
 
               <button
                 type="button"
-                onClick={() => loadData(true)}
-                disabled={refreshing}
-                className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => loadData()}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 transition hover:bg-red-50"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                Refresh
+                <RefreshCw className="h-4 w-4" />
+                Retry
               </button>
             </div>
-          </section>
+          )}
 
           {/* Summary cards */}
           <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Total Vendors
-                  </p>
+            <SummaryCard
+              icon={Store}
+              label="Total Vendors"
+              value={stats.total}
+              description="Registered vendors"
+            />
 
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.total}
-                  </p>
+            <SummaryCard
+              icon={CheckCircle}
+              label="Active Vendors"
+              value={stats.active}
+              description="Currently active"
+              iconBackground="bg-emerald-50"
+              iconColor="text-emerald-600"
+            />
 
-                  <p className="mt-1 text-xs text-slate-500">
-                    Registered vendors
-                  </p>
-                </div>
+            <SummaryCard
+              icon={XCircle}
+              label="Inactive Vendors"
+              value={stats.inactive}
+              description="Currently inactive"
+              iconBackground="bg-slate-100"
+              iconColor="text-slate-500"
+            />
 
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                  <Store className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Active Vendors
-                  </p>
-
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.active}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Currently active
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Inactive Vendors
-                  </p>
-
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {stats.inactive}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Currently inactive
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                  <XCircle className="h-5 w-5 text-slate-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Outstanding
-                  </p>
-
-                  <p className="mt-2 text-2xl font-black text-slate-950">
-                    {formatCurrency(stats.outstanding)}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Vendor balances due
-                  </p>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                </div>
-              </div>
-            </div>
+            <SummaryCard
+              icon={AlertCircle}
+              label="Outstanding"
+              value={formatCurrency(stats.outstanding)}
+              description="Vendor balances due"
+              iconBackground="bg-amber-50"
+              iconColor="text-amber-600"
+            />
           </section>
 
           {/* Financial overview */}
           <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                  Financial Overview
-                </p>
+            <div className="mb-5">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                Financial Overview
+              </p>
 
-                <h3 className="mt-1 text-lg font-bold text-slate-950">
-                  Vendor transactions
-                </h3>
-              </div>
+              <h3 className="mt-1 text-lg font-bold text-slate-950">
+                Vendor transactions
+              </h3>
 
-              <div className="hidden rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 sm:block">
-                Current records
-              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Summary of vendor transaction values and payments.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-blue-600" />
-                  <span className="text-xs font-semibold text-slate-500">
-                    Total Transaction Value
-                  </span>
-                </div>
+              <FinancialCard
+                icon={Receipt}
+                label="Total Transaction Value"
+                value={formatCurrency(stats.totalValue)}
+                iconColor="text-blue-600"
+              />
 
-                <p className="text-xl font-bold text-slate-950">
-                  {formatCurrency(stats.totalValue)}
-                </p>
-              </div>
+              <FinancialCard
+                icon={CreditCard}
+                label="Total Paid"
+                value={formatCurrency(stats.totalPaid)}
+                iconColor="text-emerald-600"
+              />
 
-              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-emerald-600" />
-                  <span className="text-xs font-semibold text-slate-500">
-                    Total Paid
-                  </span>
-                </div>
-
-                <p className="text-xl font-bold text-slate-950">
-                  {formatCurrency(stats.totalPaid)}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-amber-600" />
-                  <span className="text-xs font-semibold text-slate-500">
-                    Balance Due
-                  </span>
-                </div>
-
-                <p className="text-xl font-bold text-slate-950">
-                  {formatCurrency(stats.outstanding)}
-                </p>
-              </div>
+              <FinancialCard
+                icon={DollarSign}
+                label="Balance Due"
+                value={formatCurrency(stats.outstanding)}
+                iconColor="text-amber-600"
+                background="bg-amber-50/60"
+              />
             </div>
           </section>
 
-          {/* Vendors table */}
+          {/* Vendor directory */}
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {/* Table header */}
             <div className="border-b border-slate-200 p-5 sm:p-6">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div>
@@ -922,12 +857,11 @@ export default function VendorsPage() {
 
                   <p className="mt-1 text-sm text-slate-500">
                     {filteredVendors.length} vendor
-                    {filteredVendors.length === 1 ? "" : "s"} found
+                    {filteredVendors.length === 1 ? "" : "s"} shown
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  {/* Search */}
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
@@ -939,11 +873,10 @@ export default function VendorsPage() {
                         setCurrentPage(1);
                       }}
                       placeholder="Search vendors..."
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-64"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 sm:w-64"
                     />
                   </div>
 
-                  {/* Filter */}
                   <div className="relative">
                     <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
@@ -958,18 +891,32 @@ export default function VendorsPage() {
                         );
                         setCurrentPage(1);
                       }}
-                      className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:w-36"
+                      className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-9 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 sm:w-40"
                     >
                       <option value="all">All Status</option>
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                     </select>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => loadData(true)}
+                    disabled={refreshing}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${
+                        refreshing ? "animate-spin" : ""
+                      }`}
+                    />
+
+                    Refresh
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Empty state */}
             {paginatedVendors.length === 0 ? (
               <div className="px-6 py-16 text-center">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
@@ -992,6 +939,7 @@ export default function VendorsPage() {
                     onClick={() => {
                       setSearchTerm("");
                       setStatusFilter("all");
+                      setCurrentPage(1);
                     }}
                     className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                   >
@@ -1003,34 +951,34 @@ export default function VendorsPage() {
               <>
                 {/* Desktop table */}
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full">
+                  <table className="w-full min-w-[1050px]">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/70">
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Vendor
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Service
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Contact
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Transactions
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Balance
                         </th>
 
-                        <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Status
                         </th>
 
-                        <th className="px-6 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                           Action
                         </th>
                       </tr>
@@ -1049,16 +997,16 @@ export default function VendorsPage() {
                         return (
                           <tr
                             key={vendor.id}
-                            className="group transition hover:bg-slate-50/70"
+                            className="transition hover:bg-slate-50"
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                                   <Building2 className="h-5 w-5" />
                                 </div>
 
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-slate-900">
+                                  <p className="truncate font-semibold text-slate-900">
                                     {vendor.vendor_name}
                                   </p>
 
@@ -1137,7 +1085,7 @@ export default function VendorsPage() {
                   </table>
                 </div>
 
-                {/* Mobile/tablet cards */}
+                {/* Mobile cards */}
                 <div className="divide-y divide-slate-100 lg:hidden">
                   {paginatedVendors.map((vendor) => {
                     const status = getStatusBadge(vendor.is_active);
@@ -1151,11 +1099,11 @@ export default function VendorsPage() {
                     return (
                       <div
                         key={vendor.id}
-                        className="p-5 transition hover:bg-slate-50/70 sm:p-6"
+                        className="p-5 transition hover:bg-slate-50 sm:p-6"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                               <Building2 className="h-5 w-5" />
                             </div>
 
@@ -1164,7 +1112,7 @@ export default function VendorsPage() {
                                 {vendor.vendor_name}
                               </h4>
 
-                              <p className="mt-1 text-xs text-slate-400">
+                              <p className="mt-0.5 text-xs text-slate-500">
                                 {vendor.service_type || "No service type"}
                               </p>
                             </div>
@@ -1178,7 +1126,7 @@ export default function VendorsPage() {
                           </span>
                         </div>
 
-                        <div className="mt-5 grid grid-cols-2 gap-3">
+                        <div className="mt-4 grid grid-cols-2 gap-3">
                           <div className="rounded-xl bg-slate-50 p-3">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                               Contact
@@ -1220,7 +1168,7 @@ export default function VendorsPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex items-center justify-between">
+                        <div className="mt-4 flex items-center justify-between gap-3">
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-bold ${balanceStatus.className}`}
                           >
@@ -1300,47 +1248,65 @@ export default function VendorsPage() {
             )}
           </section>
 
-          {/* Profile / account */}
-          <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                Account
-              </p>
+          {/* Manager account */}
+          <section className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                  {firstName.charAt(0).toUpperCase()}
+                </div>
 
-              <h3 className="mt-1 text-lg font-bold text-slate-950">
-                Manager Profile
-              </h3>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Manager Account
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    {fullName}
+                  </h3>
+
+                  <p className="mt-1 truncate text-sm text-slate-500">
+                    {me?.email || "—"}
+                  </p>
+                </div>
+
+                <div className="hidden items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 sm:flex">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+
+                  <span className="text-xs font-bold text-emerald-700">
+                    Active
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-lg font-black text-white shadow-lg shadow-blue-600/20">
-                {firstName.charAt(0).toUpperCase()}
-              </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                  <Store className="h-5 w-5 text-blue-600" />
+                </div>
 
-              <div className="min-w-0 flex-1">
-                <h4 className="text-base font-bold text-slate-950">
-                  {fullName}
-                </h4>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Vendor Records
+                  </p>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  {me?.email || "—"}
-                </p>
-              </div>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {stats.total}
+                  </p>
 
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-
-                <span className="text-xs font-bold text-emerald-700">
-                  Manager Account
-                </span>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Total registered vendors
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
           {/* Footer */}
-          <footer className="py-6 text-center">
+          <footer className="mt-8 border-t border-slate-200 pt-6 text-center">
             <p className="text-xs text-slate-400">
-              Nyutu Ltd Enterprise Management System
+              NYUTU LIMITED ERP MANAGEMENT
             </p>
 
             <p className="mt-1 text-[10px] text-slate-400">
@@ -1350,7 +1316,7 @@ export default function VendorsPage() {
         </div>
       </main>
 
-      {/* Vendor Detail Modal */}
+      {/* Vendor detail modal */}
       {showDetailModal && selectedVendor && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
@@ -1390,10 +1356,13 @@ export default function VendorsPage() {
             </div>
 
             <div className="p-5 sm:p-6">
-              {/* Status row */}
+              {/* Status */}
               <div className="mb-6 flex flex-wrap items-center gap-2">
                 {(() => {
-                  const status = getStatusBadge(selectedVendor.is_active);
+                  const status = getStatusBadge(
+                    selectedVendor.is_active
+                  );
+
                   const StatusIcon = status.icon;
 
                   return (
@@ -1410,6 +1379,7 @@ export default function VendorsPage() {
                   const balanceStatus = getBalanceStatus(
                     selectedVendor.total_balance
                   );
+
                   const BalanceIcon = balanceStatus.icon;
 
                   return (
@@ -1423,59 +1393,31 @@ export default function VendorsPage() {
                 })()}
               </div>
 
-              {/* Details */}
+              {/* Vendor details */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Service Type
-                    </span>
-                  </div>
+                <DetailCard
+                  icon={FileText}
+                  label="Service Type"
+                  value={selectedVendor.service_type || "—"}
+                />
 
-                  <p className="text-sm font-semibold text-slate-800">
-                    {selectedVendor.service_type || "—"}
-                  </p>
-                </div>
+                <DetailCard
+                  icon={User}
+                  label="Contact Person"
+                  value={selectedVendor.contact_person || "—"}
+                />
 
-                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <User className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Contact Person
-                    </span>
-                  </div>
+                <DetailCard
+                  icon={Phone}
+                  label="Phone Number"
+                  value={selectedVendor.phone_number || "—"}
+                />
 
-                  <p className="text-sm font-semibold text-slate-800">
-                    {selectedVendor.contact_person || "—"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Phone Number
-                    </span>
-                  </div>
-
-                  <p className="text-sm font-semibold text-slate-800">
-                    {selectedVendor.phone_number || "—"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Physical Address
-                    </span>
-                  </div>
-
-                  <p className="text-sm font-semibold text-slate-800">
-                    {selectedVendor.physical_address || "—"}
-                  </p>
-                </div>
+                <DetailCard
+                  icon={MapPin}
+                  label="Physical Address"
+                  value={selectedVendor.physical_address || "—"}
+                />
               </div>
 
               {/* Financial summary */}
@@ -1562,6 +1504,102 @@ export default function VendorsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  iconBackground = "bg-blue-50",
+  iconColor = "text-blue-600",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+  description: string;
+  iconBackground?: string;
+  iconColor?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-slate-900">
+            {value}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBackground}`}
+        >
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinancialCard({
+  icon: Icon,
+  label,
+  value,
+  iconColor,
+  background = "bg-slate-50/70",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  iconColor: string;
+  background?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-slate-100 ${background} p-4`}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className={`h-4 w-4 ${iconColor}`} />
+
+        <span className="text-xs font-semibold text-slate-500">
+          {label}
+        </span>
+      </div>
+
+      <p className="text-xl font-bold text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function DetailCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className="h-4 w-4 text-blue-600" />
+
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          {label}
+        </span>
+      </div>
+
+      <p className="text-sm font-semibold text-slate-800">{value}</p>
     </div>
   );
 }
