@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -268,23 +269,29 @@ export default function ManagerExpensesPage() {
     useState<Expense | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // -------------------------------------------------
-  // LOGOUT STATE
-  // -------------------------------------------------
-
   const [loggingOut, setLoggingOut] = useState(false);
 
   const ITEMS_PER_PAGE = 10;
 
-  // -------------------------------------------------
-  // AUTHENTICATED API REQUEST
-  // -------------------------------------------------
+  const navigate = (href: string) => {
+    setMobileOpen(false);
+    router.push(href);
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/manager/dashboard") {
+      return pathname === href;
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const authenticatedFetch = useCallback(
     async (endpoint: string, options: RequestInit = {}) => {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         credentials: "include",
+        cache: "no-store",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -319,10 +326,6 @@ export default function ManagerExpensesPage() {
     },
     [router]
   );
-
-  // -------------------------------------------------
-  // LOAD DATA
-  // -------------------------------------------------
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -400,10 +403,6 @@ export default function ManagerExpensesPage() {
     loadData();
   }, [loadData]);
 
-  // -------------------------------------------------
-  // USER DISPLAY INFORMATION
-  // -------------------------------------------------
-
   const firstName =
     me?.first_name?.trim() ||
     me?.email?.split("@")[0] ||
@@ -422,10 +421,6 @@ export default function ManagerExpensesPage() {
       .slice(0, 2)
       .toUpperCase() || "M";
 
-  // -------------------------------------------------
-  // CATEGORIES
-  // -------------------------------------------------
-
   const categories = useMemo(() => {
     const cats = new Set<string>();
 
@@ -435,10 +430,6 @@ export default function ManagerExpensesPage() {
 
     return Array.from(cats);
   }, [expenses]);
-
-  // -------------------------------------------------
-  // FILTER EXPENSES
-  // -------------------------------------------------
 
   const filteredExpenses = expenses.filter((expense) => {
     const searchLower = searchTerm.toLowerCase();
@@ -452,8 +443,7 @@ export default function ManagerExpensesPage() {
         .includes(searchLower) ||
       (expense.receipt_number
         ?.toLowerCase()
-        .includes(searchLower) ??
-        false);
+        .includes(searchLower) ?? false);
 
     const matchesCategory =
       categoryFilter === "all" ||
@@ -473,10 +463,6 @@ export default function ManagerExpensesPage() {
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
-
-  // -------------------------------------------------
-  // STATS
-  // -------------------------------------------------
 
   const stats = {
     total: expenses.length,
@@ -500,11 +486,7 @@ export default function ManagerExpensesPage() {
     ),
   };
 
-  // -------------------------------------------------
-  // GREETING
-  // -------------------------------------------------
-
-  const greeting = (() => {
+  const greeting = useMemo(() => {
     const hour = new Date().getHours();
 
     if (hour < 12) {
@@ -516,11 +498,7 @@ export default function ManagerExpensesPage() {
     }
 
     return "Good evening";
-  })();
-
-  // -------------------------------------------------
-  // LOGOUT
-  // -------------------------------------------------
+  }, []);
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -538,28 +516,25 @@ export default function ManagerExpensesPage() {
         },
       });
     } catch {
-      // The user should still be taken out of the dashboard
-      // even if the logout request itself fails.
+      // The user should still be taken out of the dashboard.
     } finally {
       router.replace("/");
     }
   };
 
-  // -------------------------------------------------
-  // LOADING SCREEN
-  // -------------------------------------------------
-
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
+          </div>
 
-          <p className="mt-4 text-sm font-medium text-white">
+          <h2 className="text-lg font-semibold text-slate-900">
             Loading expenses...
-          </p>
+          </h2>
 
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Fetching expense records
           </p>
         </div>
@@ -567,21 +542,17 @@ export default function ManagerExpensesPage() {
     );
   }
 
-  // -------------------------------------------------
-  // ERROR SCREEN
-  // -------------------------------------------------
-
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-6 w-6 text-red-600" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
 
-          <h1 className="mt-5 text-lg font-semibold text-slate-900">
-            Unable to load data
-          </h1>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Unable to load expenses
+          </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
             {error}
@@ -589,9 +560,10 @@ export default function ManagerExpensesPage() {
 
           <button
             onClick={loadData}
-            className="mt-6 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Try again
+            <RefreshCw className="h-4 w-4" />
+            Try Again
           </button>
         </div>
       </div>
@@ -599,22 +571,31 @@ export default function ManagerExpensesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* -------------------------------------------------
-          DETAIL MODAL
-      ------------------------------------------------- */}
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* MOBILE SIDEBAR OVERLAY */}
+
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+        />
+      )}
+
+      {/* DETAIL MODAL */}
 
       {showDetailModal && selectedExpense && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2.5">
-                  <Receipt className="h-6 w-6 text-slate-700" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                  <Receipt className="h-5 w-5 text-blue-600" />
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Expense Details
                   </h3>
 
@@ -625,42 +606,41 @@ export default function ManagerExpensesPage() {
               </div>
 
               <button
+                type="button"
                 onClick={() => {
                   setShowDetailModal(false);
                   setSelectedExpense(null);
                 }}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 p-4">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Calendar className="h-4 w-4" />
                   <span>Date</span>
                 </div>
 
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {formatDateFull(
-                    selectedExpense.expense_date
-                  )}
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {formatDateFull(selectedExpense.expense_date)}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Wallet className="h-4 w-4" />
                   <span>Amount</span>
                 </div>
 
-                <p className="mt-2 text-lg font-semibold text-slate-900">
+                <p className="mt-2 text-lg font-bold text-slate-900">
                   {formatCurrency(selectedExpense.amount)}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <FileText className="h-4 w-4" />
                   <span>Category</span>
@@ -668,7 +648,7 @@ export default function ManagerExpensesPage() {
 
                 <div className="mt-2">
                   <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getCategoryColor(
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getCategoryColor(
                       selectedExpense.category
                     )}`}
                   >
@@ -677,7 +657,7 @@ export default function ManagerExpensesPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <CreditCard className="h-4 w-4" />
                   <span>Payment Method</span>
@@ -691,7 +671,7 @@ export default function ManagerExpensesPage() {
 
                     return (
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${method.color}`}
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${method.color}`}
                       >
                         {method.icon}
                         {method.label}
@@ -701,38 +681,38 @@ export default function ManagerExpensesPage() {
                 </div>
               </div>
 
-              <div className="col-span-2 rounded-xl border border-slate-200 p-4">
+              <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <FileText className="h-4 w-4" />
                   <span>Description</span>
                 </div>
 
-                <p className="mt-2 text-sm font-medium text-slate-900">
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-900">
                   {selectedExpense.description}
                 </p>
               </div>
 
               {selectedExpense.receipt_number && (
-                <div className="col-span-2 rounded-xl border border-slate-200 p-4">
+                <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <FileText className="h-4 w-4" />
                     <span>Receipt Number</span>
                   </div>
 
-                  <p className="mt-2 text-sm font-medium text-slate-900">
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
                     {selectedExpense.receipt_number}
                   </p>
                 </div>
               )}
 
               {selectedExpense.remarks && (
-                <div className="col-span-2 rounded-xl border border-slate-200 p-4">
+                <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <FileText className="h-4 w-4" />
                     <span>Remarks</span>
                   </div>
 
-                  <p className="mt-2 text-sm font-medium text-slate-900">
+                  <p className="mt-2 text-sm leading-6 text-slate-900">
                     {selectedExpense.remarks}
                   </p>
                 </div>
@@ -741,11 +721,12 @@ export default function ManagerExpensesPage() {
 
             <div className="mt-6 flex justify-end">
               <button
+                type="button"
                 onClick={() => {
                   setShowDetailModal(false);
                   setSelectedExpense(null);
                 }}
-                className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Close
               </button>
@@ -754,76 +735,103 @@ export default function ManagerExpensesPage() {
         </div>
       )}
 
-      {/* -------------------------------------------------
-          SIDEBAR
-      ------------------------------------------------- */}
+      {/* SIDEBAR */}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
-          mobileOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-wide">
-              NYUTU LIMITED
-            </p>
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
+          <button
+            type="button"
+            onClick={() => navigate("/manager/dashboard")}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">
+                N
+              </span>
+            </div>
 
-            <p className="mt-1 text-xs text-slate-400">
-              Management Portal
-            </p>
-          </div>
+            <div className="text-left">
+              <p className="text-sm font-bold tracking-wide text-white">
+                NYUTU LTD
+              </p>
+
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+                ERP MANAGEMENT
+              </p>
+            </div>
+          </button>
 
           <button
+            type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            Navigation
-          </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
 
-          <nav className="mt-3 space-y-1">
+          <nav className="space-y-1.5">
             <button
-              onClick={() => {
-                setMobileOpen(false);
-                router.push("/manager/dashboard");
-              }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+              type="button"
+              onClick={() => navigate("/manager/dashboard")}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                isActive("/manager/dashboard")
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+              }`}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span>Dashboard</span>
+              <LayoutDashboard
+                className={`h-5 w-5 ${
+                  isActive("/manager/dashboard")
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-slate-300"
+                }`}
+              />
+
+              <span className="flex-1">Dashboard</span>
+
+              {isActive("/manager/dashboard") && (
+                <ChevronRight className="h-4 w-4" />
+              )}
             </button>
 
             {modules.map((module) => {
               const Icon = module.icon;
-              const isActive = pathname === module.href;
+              const active = isActive(module.href);
 
               return (
                 <button
                   key={module.name}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    router.push(module.href);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
+                  type="button"
+                  onClick={() => navigate(module.href)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
 
-                  <span>{module.name}</span>
+                  <span className="flex-1">{module.name}</span>
 
-                  {isActive && (
-                    <ChevronRight className="ml-auto h-4 w-4 text-slate-400" />
+                  {active && (
+                    <ChevronRight className="h-4 w-4" />
                   )}
                 </button>
               );
@@ -831,29 +839,27 @@ export default function ManagerExpensesPage() {
           </nav>
         </div>
 
-        {/* -------------------------------------------------
-            PROFILE + CONNECTED LOGOUT
-        ------------------------------------------------- */}
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              {firstName.charAt(0).toUpperCase()}
+            </div>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-3 rounded-xl bg-white/5 p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-semibold text-white">
-                {initials}
-              </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {fullName}
+              </p>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  {fullName}
-                </p>
+              <p className="truncate text-xs text-slate-400">
+                {me?.email || "Manager"}
+              </p>
 
-                <p className="truncate text-xs text-slate-500">
-                  {me?.email}
-                </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
 
-                <p className="mt-0.5 text-[11px] text-slate-600">
-                  Manager
-                </p>
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
               </div>
             </div>
           </div>
@@ -862,160 +868,188 @@ export default function ManagerExpensesPage() {
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
             ) : (
-              <LogOut className="h-5 w-5" />
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
             )}
-
-            <span>
-              {loggingOut ? "Signing out..." : "Sign Out"}
-            </span>
           </button>
         </div>
       </aside>
 
-      {/* -------------------------------------------------
-          MAIN CONTENT
-      ------------------------------------------------- */}
+      {/* MAIN */}
 
-      <div className="lg:pl-72">
-        {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          <div className="flex h-20 items-center justify-between px-5 sm:px-8">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+      <main className="min-h-screen lg:pl-72">
+        {/* HEADER */}
 
-            <div className="hidden lg:block">
-              <p className="text-sm font-medium text-slate-900">
-                Expenses
-              </p>
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
 
-              <p className="text-xs text-slate-500">
-                Manage company expenses
-              </p>
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  {greeting}
+                </p>
+
+                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  {firstName}
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-slate-900">
-                  {fullName}
-                </p>
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
 
-                <p className="text-xs text-slate-500">
-                  Manager
-                </p>
+                <span className="text-xs font-semibold text-emerald-700">
+                  System Online
+                </span>
               </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                {initials}
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <main className="px-5 py-7 sm:px-8 lg:py-9">
-          {/* Welcome Banner */}
-          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* WELCOME */}
+
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-blue-300" />
+
+                  <span className="text-xs font-semibold text-blue-200">
+                    Manager Expenses
+                  </span>
+                </div>
+
                 <p className="text-sm font-medium text-slate-400">
                   {greeting}, {firstName}
                 </p>
 
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
                   Expense Management
-                </h1>
+                </h2>
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  Track and monitor all company expenses across categories.
+                  Track and monitor all company expenses across
+                  categories from one place.
                 </p>
               </div>
 
-              <button
-                onClick={loadData}
-                className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/20"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={loadData}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${
+                      loading ? "animate-spin" : ""
+                    }`}
+                  />
+                  Refresh
+                </button>
+
+                <div className="hidden h-16 w-16 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                  <Receipt className="h-8 w-8 text-blue-300" />
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* Summary Cards */}
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          {/* STATS */}
+
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
                   <Receipt className="h-5 w-5 text-slate-700" />
                 </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">
                     Total Expenses
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {stats.total}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-blue-50 p-2">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
                   <Wallet className="h-5 w-5 text-blue-600" />
                 </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">
                     Total Amount
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {formatCurrency(stats.totalAmount)}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-50 p-2">
-                  <Calendar className="h-5 w-5 text-green-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <Calendar className="h-5 w-5 text-emerald-600" />
                 </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">
                     This Month
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {formatCurrency(stats.monthTotal)}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-orange-50 p-2">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
                   <Calendar className="h-5 w-5 text-orange-600" />
                 </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500">
                     Today
                   </p>
 
-                  <p className="text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-black text-slate-900">
                     {formatCurrency(stats.todayTotal)}
                   </p>
                 </div>
@@ -1023,709 +1057,883 @@ export default function ManagerExpensesPage() {
             </div>
           </section>
 
-          {/* Daily & Monthly Summary */}
-          <section className="mt-6 grid gap-4 md:grid-cols-2">
-            {dailyExpenses &&
-              dailyExpenses.expenses.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-                    <Calendar className="h-4 w-4" />
-                    <span>Today's Expenses</span>
-                  </div>
+          {/* OPERATIONS / QUICK SUMMARY */}
 
-                  <div className="max-h-48 space-y-2 overflow-y-auto">
-                    {dailyExpenses.expenses
-                      .slice(0, 5)
-                      .map((expense) => (
-                        <div
-                          key={expense.id}
-                          className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {expense.description}
-                            </p>
+          <section className="mb-6">
+            <div className="mb-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                Operations
+              </p>
 
-                            <p className="text-xs text-slate-500">
-                              {expense.category_display}
-                            </p>
-                          </div>
+              <h2 className="mt-1 text-xl font-bold text-slate-900">
+                Expense Overview
+              </h2>
 
-                          <p className="text-sm font-semibold text-slate-900">
-                            {formatCurrency(expense.amount)}
+              <p className="mt-1 text-sm text-slate-500">
+                Review recent expense activity and financial summaries.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {dailyExpenses &&
+                dailyExpenses.expenses.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                          <Calendar className="h-5 w-5 text-blue-600" />
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">
+                            Today&apos;s Expenses
+                          </h3>
+
+                          <p className="text-xs text-slate-500">
+                            Recent daily activity
                           </p>
                         </div>
-                      ))}
+                      </div>
 
-                    {dailyExpenses.expenses.length > 5 && (
-                      <p className="text-center text-xs text-slate-400">
-                        +
-                        {dailyExpenses.expenses.length - 5}{" "}
-                        more
-                      </p>
-                    )}
-                  </div>
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                        {formatCurrency(dailyExpenses.total)}
+                      </span>
+                    </div>
 
-                  <div className="mt-3 border-t border-slate-200 pt-3">
-                    <div className="flex justify-between">
-                      <p className="text-sm font-medium text-slate-600">
+                    <div className="max-h-48 space-y-2 overflow-y-auto">
+                      {dailyExpenses.expenses
+                        .slice(0, 5)
+                        .map((expense) => (
+                          <div
+                            key={expense.id}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-3 py-2.5 transition hover:bg-slate-50"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-900">
+                                {expense.description}
+                              </p>
+
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {expense.category_display}
+                              </p>
+                            </div>
+
+                            <p className="shrink-0 text-sm font-bold text-slate-900">
+                              {formatCurrency(expense.amount)}
+                            </p>
+                          </div>
+                        ))}
+
+                      {dailyExpenses.expenses.length > 5 && (
+                        <p className="pt-1 text-center text-xs font-medium text-slate-400">
+                          +
+                          {dailyExpenses.expenses.length - 5}{" "}
+                          more
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+                      <p className="text-sm font-medium text-slate-500">
                         Total
                       </p>
 
-                      <p className="text-sm font-bold text-slate-900">
-                        {formatCurrency(
-                          dailyExpenses.total
-                        )}
+                      <p className="text-sm font-black text-slate-900">
+                        {formatCurrency(dailyExpenses.total)}
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-            {monthlyExpenses &&
-              monthlyExpenses.expenses.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {monthlyExpenses.month} - Top Expenses
-                    </span>
-                  </div>
+              {monthlyExpenses &&
+                monthlyExpenses.expenses.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                          <Calendar className="h-5 w-5 text-emerald-600" />
+                        </div>
 
-                  <div className="max-h-48 space-y-2 overflow-y-auto">
-                    {monthlyExpenses.expenses
-                      .slice(0, 5)
-                      .map((expense) => (
-                        <div
-                          key={expense.id}
-                          className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {expense.description}
-                            </p>
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">
+                            {monthlyExpenses.month}
+                          </h3>
 
-                            <p className="text-xs text-slate-500">
-                              {expense.category_display}
-                            </p>
-                          </div>
-
-                          <p className="text-sm font-semibold text-slate-900">
-                            {formatCurrency(expense.amount)}
+                          <p className="text-xs text-slate-500">
+                            Top monthly expenses
                           </p>
                         </div>
-                      ))}
+                      </div>
 
-                    {monthlyExpenses.expenses.length > 5 && (
-                      <p className="text-center text-xs text-slate-400">
-                        +
-                        {monthlyExpenses.expenses.length - 5}{" "}
-                        more
-                      </p>
-                    )}
-                  </div>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        {formatCurrency(monthlyExpenses.total)}
+                      </span>
+                    </div>
 
-                  <div className="mt-3 border-t border-slate-200 pt-3">
-                    <div className="flex justify-between">
-                      <p className="text-sm font-medium text-slate-600">
+                    <div className="max-h-48 space-y-2 overflow-y-auto">
+                      {monthlyExpenses.expenses
+                        .slice(0, 5)
+                        .map((expense) => (
+                          <div
+                            key={expense.id}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-3 py-2.5 transition hover:bg-slate-50"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-900">
+                                {expense.description}
+                              </p>
+
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {expense.category_display}
+                              </p>
+                            </div>
+
+                            <p className="shrink-0 text-sm font-bold text-slate-900">
+                              {formatCurrency(expense.amount)}
+                            </p>
+                          </div>
+                        ))}
+
+                      {monthlyExpenses.expenses.length > 5 && (
+                        <p className="pt-1 text-center text-xs font-medium text-slate-400">
+                          +
+                          {monthlyExpenses.expenses.length - 5}{" "}
+                          more
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+                      <p className="text-sm font-medium text-slate-500">
                         Total
                       </p>
 
-                      <p className="text-sm font-bold text-slate-900">
-                        {formatCurrency(
-                          monthlyExpenses.total
-                        )}
+                      <p className="text-sm font-black text-slate-900">
+                        {formatCurrency(monthlyExpenses.total)}
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
-          </section>
-
-          {/* Tabs */}
-          <section className="mt-6 border-b border-slate-200">
-            <div className="flex gap-1 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab("overview")}
-                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
-                  activeTab === "overview"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <PieChart className="h-4 w-4" />
-                  Overview
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("expenses")}
-                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
-                  activeTab === "expenses"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4" />
-                  All Expenses
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("summary")}
-                className={`border-b-2 px-4 py-2.5 text-sm font-medium transition ${
-                  activeTab === "summary"
-                    ? "border-slate-900 text-slate-900"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Summary Reports
-                </div>
-              </button>
+                )}
             </div>
           </section>
 
-          {/* Tab Content */}
-          <section className="mt-6">
-            {/* Overview */}
-            {activeTab === "overview" && (
-              <div className="grid gap-6 md:grid-cols-2">
-                {monthlySummary.length > 0 && (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-5 py-4">
-                      <h3 className="font-semibold text-slate-900">
-                        Monthly Summary
-                      </h3>
+          {/* TABS */}
+
+          <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex overflow-x-auto border-b border-slate-200 px-2 sm:px-4">
+              <button
+                type="button"
+                onClick={() => setActiveTab("overview")}
+                className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                  activeTab === "overview"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                <PieChart className="h-4 w-4" />
+                Overview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("expenses")}
+                className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                  activeTab === "expenses"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                <Receipt className="h-4 w-4" />
+                All Expenses
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("summary")}
+                className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition ${
+                  activeTab === "summary"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Summary Reports
+              </button>
+            </div>
+
+            {/* TAB CONTENT */}
+
+            <div className="p-4 sm:p-6">
+              {/* OVERVIEW */}
+
+              {activeTab === "overview" && (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {monthlySummary.length > 0 && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-200 px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                            <Calendar className="h-5 w-5 text-blue-600" />
+                          </div>
+
+                          <div>
+                            <h3 className="font-bold text-slate-900">
+                              Monthly Summary
+                            </h3>
+
+                            <p className="text-xs text-slate-500">
+                              Recent monthly totals
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Month
+                              </th>
+
+                              <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Total
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            {monthlySummary
+                              .slice(0, 6)
+                              .map((item) => (
+                                <tr
+                                  key={String(item.month)}
+                                  className="transition hover:bg-slate-50/70"
+                                >
+                                  <td className="px-4 py-3 text-slate-600">
+                                    {formatDate(
+                                      String(item.month)
+                                    )}
+                                  </td>
+
+                                  <td className="px-4 py-3 text-right font-bold text-slate-900">
+                                    {formatCurrency(item.total)}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
+                  )}
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left font-medium text-slate-600">
-                              Month
-                            </th>
+                  {yearlySummary.length > 0 && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-200 px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
+                            <BarChart3 className="h-5 w-5 text-purple-600" />
+                          </div>
 
-                            <th className="px-4 py-2.5 text-right font-medium text-slate-600">
-                              Total
-                            </th>
-                          </tr>
-                        </thead>
+                          <div>
+                            <h3 className="font-bold text-slate-900">
+                              Yearly Summary
+                            </h3>
 
-                        <tbody className="divide-y divide-slate-100">
-                          {monthlySummary
-                            .slice(0, 6)
-                            .map((item) => (
+                            <p className="text-xs text-slate-500">
+                              Annual expense totals
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Year
+                              </th>
+
+                              <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Total
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            {yearlySummary.map((item) => (
                               <tr
-                                key={String(item.month)}
-                                className="hover:bg-slate-50/50"
+                                key={String(item.year)}
+                                className="transition hover:bg-slate-50/70"
                               >
-                                <td className="px-4 py-2.5 text-slate-600">
-                                  {formatDate(
-                                    String(item.month)
-                                  )}
+                                <td className="px-4 py-3 text-slate-600">
+                                  {String(item.year)}
                                 </td>
 
-                                <td className="px-4 py-2.5 text-right font-medium text-slate-900">
+                                <td className="px-4 py-3 text-right font-bold text-slate-900">
                                   {formatCurrency(item.total)}
                                 </td>
                               </tr>
                             ))}
-                        </tbody>
-                      </table>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {yearlySummary.length > 0 && (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-5 py-4">
-                      <h3 className="font-semibold text-slate-900">
-                        Yearly Summary
-                      </h3>
+                  {monthlySummary.length === 0 &&
+                    yearlySummary.length === 0 && (
+                      <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                        <BarChart3 className="mx-auto h-10 w-10 text-slate-300" />
+
+                        <p className="mt-3 text-sm font-semibold text-slate-700">
+                          No summary reports available
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          Summary information will appear here when
+                          expense records are available.
+                        </p>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* ALL EXPENSES */}
+
+              {activeTab === "expenses" && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                          <Receipt className="h-5 w-5 text-blue-600" />
+                        </div>
+
+                        <div>
+                          <h3 className="font-bold text-slate-900">
+                            All Expenses
+                          </h3>
+
+                          <p className="text-xs text-slate-500">
+                            Browse and review recorded expenses
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left font-medium text-slate-600">
-                              Year
-                            </th>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-                            <th className="px-4 py-2.5 text-right font-medium text-slate-600">
-                              Total
-                            </th>
-                          </tr>
-                        </thead>
+                        <input
+                          type="text"
+                          placeholder="Search expenses..."
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:w-60"
+                        />
+                      </div>
 
-                        <tbody className="divide-y divide-slate-100">
-                          {yearlySummary.map((item) => (
-                            <tr
-                              key={String(item.year)}
-                              className="hover:bg-slate-50/50"
-                            >
-                              <td className="px-4 py-2.5 text-slate-600">
-                                {String(item.year)}
-                              </td>
-
-                              <td className="px-4 py-2.5 text-right font-medium text-slate-900">
-                                {formatCurrency(item.total)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Expenses */}
-            {activeTab === "expenses" && (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-semibold text-slate-900">
-                    All Expenses
-                  </h3>
-
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                      <input
-                        type="text"
-                        placeholder="Search expenses..."
-                        value={searchTerm}
+                      <select
+                        value={categoryFilter}
                         onChange={(e) => {
-                          setSearchTerm(e.target.value);
+                          setCategoryFilter(e.target.value);
                           setCurrentPage(1);
                         }}
-                        className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-4 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 sm:w-56"
-                      />
-                    </div>
-
-                    <select
-                      value={categoryFilter}
-                      onChange={(e) => {
-                        setCategoryFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                    >
-                      <option value="all">
-                        All Categories
-                      </option>
-
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (l) =>
-                              l.toUpperCase()
-                            )}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="all">
+                          All Categories
                         </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">
-                          Date
-                        </th>
-
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">
-                          Description
-                        </th>
-
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">
-                          Category
-                        </th>
-
-                        <th className="px-4 py-3 text-right font-medium text-slate-600">
-                          Amount
-                        </th>
-
-                        <th className="px-4 py-3 text-left font-medium text-slate-600">
-                          Payment
-                        </th>
-
-                        <th className="px-4 py-3 text-center font-medium text-slate-600">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedExpenses.map((expense) => {
-                        const paymentMethod =
-                          getPaymentMethodBadge(
-                            expense.payment_method
-                          );
-
-                        return (
-                          <tr
-                            key={expense.id}
-                            className="hover:bg-slate-50/50"
-                          >
-                            <td className="px-4 py-3.5 text-slate-600">
-                              {formatDate(
-                                expense.expense_date
+                        {categories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (l) =>
+                                l.toUpperCase()
                               )}
-                            </td>
-
-                            <td className="px-4 py-3.5 font-medium text-slate-900">
-                              {expense.description}
-                            </td>
-
-                            <td className="px-4 py-3.5">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getCategoryColor(
-                                  expense.category
-                                )}`}
-                              >
-                                {expense.category_display}
-                              </span>
-                            </td>
-
-                            <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                              {formatCurrency(expense.amount)}
-                            </td>
-
-                            <td className="px-4 py-3.5">
-                              <span
-                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${paymentMethod.color}`}
-                              >
-                                {paymentMethod.icon}
-                                {paymentMethod.label}
-                              </span>
-                            </td>
-
-                            <td className="px-4 py-3.5 text-center">
-                              <button
-                                onClick={() => {
-                                  setSelectedExpense(
-                                    expense
-                                  );
-                                  setShowDetailModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {paginatedExpenses.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="px-4 py-8 text-center text-slate-500"
-                          >
-                            <div className="flex flex-col items-center gap-2">
-                              <Receipt className="h-8 w-8 text-slate-300" />
-
-                              <p>No expenses found</p>
-
-                              <p className="text-xs text-slate-400">
-                                {searchTerm ||
-                                categoryFilter !==
-                                  "all"
-                                  ? "Try adjusting your filters"
-                                  : "No expenses have been recorded yet"}
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-200 px-4 py-4">
-                    <div className="text-sm text-slate-500">
-                      Showing {startIndex + 1}–
-                      {Math.min(
-                        startIndex + ITEMS_PER_PAGE,
-                        filteredExpenses.length
-                      )}{" "}
-                      of {filteredExpenses.length}
-                    </div>
-
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() =>
-                          setCurrentPage((p) =>
-                            Math.max(1, p - 1)
-                          )
-                        }
-                        disabled={currentPage === 1}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-
-                      {Array.from(
-                        { length: totalPages },
-                        (_, i) => i + 1
-                      ).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() =>
-                            setCurrentPage(page)
-                          }
-                          className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                            page === currentPage
-                              ? "bg-slate-900 text-white"
-                              : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-
-                      <button
-                        onClick={() =>
-                          setCurrentPage((p) =>
-                            Math.min(
-                              totalPages,
-                              p + 1
-                            )
-                          )
-                        }
-                        disabled={
-                          currentPage === totalPages
-                        }
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* Summary */}
-            {activeTab === "summary" && (
-              <div className="grid gap-6 md:grid-cols-2">
-                {yearlyExpenses && (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-5 py-4">
-                      <h3 className="font-semibold text-slate-900">
-                        {yearlyExpenses.year} - Yearly Expenses
-                      </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Date
+                          </th>
 
-                      <p className="text-xs text-slate-500">
-                        Total:{" "}
-                        {formatCurrency(
-                          yearlyExpenses.total
-                        )}
-                      </p>
-                    </div>
+                          <th className="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Description
+                          </th>
 
-                    <div className="max-h-96 overflow-y-auto overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-slate-50">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left font-medium text-slate-600">
-                              Date
-                            </th>
+                          <th className="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Category
+                          </th>
 
-                            <th className="px-4 py-2.5 text-left font-medium text-slate-600">
-                              Description
-                            </th>
+                          <th className="px-4 py-3.5 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Amount
+                          </th>
 
-                            <th className="px-4 py-2.5 text-right font-medium text-slate-600">
-                              Amount
-                            </th>
-                          </tr>
-                        </thead>
+                          <th className="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Payment
+                          </th>
 
-                        <tbody className="divide-y divide-slate-100">
-                          {yearlyExpenses.expenses
-                            .slice(0, 20)
-                            .map((expense) => (
-                              <tr
-                                key={expense.id}
-                                className="hover:bg-slate-50/50"
-                              >
-                                <td className="px-4 py-2 text-xs text-slate-600">
-                                  {formatDate(
-                                    expense.expense_date
-                                  )}
-                                </td>
+                          <th className="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
 
-                                <td className="px-4 py-2 text-sm text-slate-900">
+                      <tbody className="divide-y divide-slate-100">
+                        {paginatedExpenses.map((expense) => {
+                          const paymentMethod =
+                            getPaymentMethodBadge(
+                              expense.payment_method
+                            );
+
+                          return (
+                            <tr
+                              key={expense.id}
+                              className="transition hover:bg-slate-50/70"
+                            >
+                              <td className="px-4 py-4 text-slate-600">
+                                {formatDate(
+                                  expense.expense_date
+                                )}
+                              </td>
+
+                              <td className="max-w-xs px-4 py-4 font-semibold text-slate-900">
+                                <span className="block truncate">
                                   {expense.description}
-                                </td>
+                                </span>
+                              </td>
 
-                                <td className="px-4 py-2 text-right font-medium text-slate-900">
-                                  {formatCurrency(
-                                    expense.amount
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
+                              <td className="px-4 py-4">
+                                <span
+                                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getCategoryColor(
+                                    expense.category
+                                  )}`}
+                                >
+                                  {expense.category_display}
+                                </span>
+                              </td>
 
-                          {yearlyExpenses.expenses.length ===
-                            0 && (
-                            <tr>
-                              <td
-                                colSpan={3}
-                                className="px-4 py-8 text-center text-slate-500"
-                              >
-                                No expenses for this year
+                              <td className="px-4 py-4 text-right font-bold text-slate-900">
+                                {formatCurrency(expense.amount)}
+                              </td>
+
+                              <td className="px-4 py-4">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${paymentMethod.color}`}
+                                >
+                                  {paymentMethod.icon}
+                                  {paymentMethod.label}
+                                </span>
+                              </td>
+
+                              <td className="px-4 py-4 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedExpense(expense);
+                                    setShowDetailModal(true);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  View
+                                </button>
                               </td>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                          );
+                        })}
 
-                {monthlySummary.length > 0 && (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-5 py-4">
-                      <h3 className="font-semibold text-slate-900">
-                        Monthly Expense Trends
-                      </h3>
-
-                      <p className="text-xs text-slate-500">
-                        Year-over-year comparison
-                      </p>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
+                        {paginatedExpenses.length === 0 && (
                           <tr>
-                            <th className="px-4 py-2.5 text-left font-medium text-slate-600">
-                              Month
-                            </th>
+                            <td
+                              colSpan={6}
+                              className="px-4 py-12 text-center"
+                            >
+                              <div className="flex flex-col items-center">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                                  <Receipt className="h-6 w-6 text-slate-400" />
+                                </div>
 
-                            <th className="px-4 py-2.5 text-right font-medium text-slate-600">
-                              Total
-                            </th>
+                                <p className="mt-3 text-sm font-semibold text-slate-700">
+                                  No expenses found
+                                </p>
 
-                            <th className="px-4 py-2.5 text-center font-medium text-slate-600">
-                              Trend
-                            </th>
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {searchTerm ||
+                                  categoryFilter !== "all"
+                                    ? "Try adjusting your filters"
+                                    : "No expenses have been recorded yet"}
+                                </p>
+                              </div>
+                            </td>
                           </tr>
-                        </thead>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                        <tbody className="divide-y divide-slate-100">
-                          {monthlySummary.map(
-                            (item, index) => {
-                              const currentTotal =
-                                Number(item.total);
+                  {totalPages > 1 && (
+                    <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm text-slate-500">
+                        Showing {startIndex + 1}–
+                        {Math.min(
+                          startIndex + ITEMS_PER_PAGE,
+                          filteredExpenses.length
+                        )}{" "}
+                        of {filteredExpenses.length}
+                      </div>
 
-                              const prevTotal =
-                                index <
-                                monthlySummary.length - 1
-                                  ? Number(
-                                      monthlySummary[
-                                        index + 1
-                                      ].total
-                                    )
-                                  : currentTotal;
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCurrentPage((p) =>
+                              Math.max(1, p - 1)
+                            )
+                          }
+                          disabled={currentPage === 1}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
 
-                              const diff =
-                                currentTotal -
-                                prevTotal;
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((page) => (
+                          <button
+                            type="button"
+                            key={page}
+                            onClick={() =>
+                              setCurrentPage(page)
+                            }
+                            className={`flex h-9 min-w-9 items-center justify-center rounded-xl px-3 text-sm font-semibold transition ${
+                              page === currentPage
+                                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                                : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
 
-                              const isUp = diff > 0;
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCurrentPage((p) =>
+                              Math.min(
+                                totalPages,
+                                p + 1
+                              )
+                            )
+                          }
+                          disabled={
+                            currentPage === totalPages
+                          }
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
-                              return (
+              {/* SUMMARY */}
+
+              {activeTab === "summary" && (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {yearlyExpenses && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-200 px-5 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
+                            <Calendar className="h-5 w-5 text-orange-600" />
+                          </div>
+
+                          <div>
+                            <h3 className="font-bold text-slate-900">
+                              {yearlyExpenses.year} - Yearly Expenses
+                            </h3>
+
+                            <p className="text-xs text-slate-500">
+                              Total:{" "}
+                              {formatCurrency(
+                                yearlyExpenses.total
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="max-h-96 overflow-y-auto overflow-x-auto">
+                        <table className="w-full min-w-[500px] text-sm">
+                          <thead className="sticky top-0 bg-slate-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Date
+                              </th>
+
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Description
+                              </th>
+
+                              <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Amount
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            {yearlyExpenses.expenses
+                              .slice(0, 20)
+                              .map((expense) => (
                                 <tr
-                                  key={String(
-                                    item.month
-                                  )}
-                                  className="hover:bg-slate-50/50"
+                                  key={expense.id}
+                                  className="transition hover:bg-slate-50/70"
                                 >
-                                  <td className="px-4 py-2.5 text-slate-600">
+                                  <td className="px-4 py-3 text-xs text-slate-600">
                                     {formatDate(
-                                      String(
-                                        item.month
-                                      )
+                                      expense.expense_date
                                     )}
                                   </td>
 
-                                  <td className="px-4 py-2.5 text-right font-medium text-slate-900">
+                                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                                    {expense.description}
+                                  </td>
+
+                                  <td className="px-4 py-3 text-right font-bold text-slate-900">
                                     {formatCurrency(
-                                      item.total
-                                    )}
-                                  </td>
-
-                                  <td className="px-4 py-2.5 text-center">
-                                    {index <
-                                      monthlySummary.length -
-                                        1 && (
-                                      <span
-                                        className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                          isUp
-                                            ? "text-red-600"
-                                            : "text-green-600"
-                                        }`}
-                                      >
-                                        {isUp ? (
-                                          <TrendingUp className="h-3.5 w-3.5" />
-                                        ) : (
-                                          <TrendingDown className="h-3.5 w-3.5" />
-                                        )}
-
-                                        {Math.abs(diff) >
-                                        0
-                                          ? formatCurrency(
-                                              Math.abs(
-                                                diff
-                                              )
-                                            )
-                                          : "0"}
-                                      </span>
+                                      expense.amount
                                     )}
                                   </td>
                                 </tr>
-                              );
-                            }
-                          )}
-                        </tbody>
-                      </table>
+                              ))}
+
+                            {yearlyExpenses.expenses.length ===
+                              0 && (
+                              <tr>
+                                <td
+                                  colSpan={3}
+                                  className="px-4 py-10 text-center text-sm text-slate-500"
+                                >
+                                  No expenses for this year
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+
+                  {monthlySummary.length > 0 && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="border-b border-slate-200 px-5 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                            <TrendingUp className="h-5 w-5 text-blue-600" />
+                          </div>
+
+                          <div>
+                            <h3 className="font-bold text-slate-900">
+                              Monthly Expense Trends
+                            </h3>
+
+                            <p className="text-xs text-slate-500">
+                              Month-over-month comparison
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[500px] text-sm">
+                          <thead className="bg-slate-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Month
+                              </th>
+
+                              <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Total
+                              </th>
+
+                              <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Trend
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-100">
+                            {monthlySummary.map(
+                              (item, index) => {
+                                const currentTotal =
+                                  Number(item.total);
+
+                                const prevTotal =
+                                  index <
+                                  monthlySummary.length - 1
+                                    ? Number(
+                                        monthlySummary[
+                                          index + 1
+                                        ].total
+                                      )
+                                    : currentTotal;
+
+                                const diff =
+                                  currentTotal -
+                                  prevTotal;
+
+                                const isUp = diff > 0;
+
+                                return (
+                                  <tr
+                                    key={String(
+                                      item.month
+                                    )}
+                                    className="transition hover:bg-slate-50/70"
+                                  >
+                                    <td className="px-4 py-3 text-slate-600">
+                                      {formatDate(
+                                        String(
+                                          item.month
+                                        )
+                                      )}
+                                    </td>
+
+                                    <td className="px-4 py-3 text-right font-bold text-slate-900">
+                                      {formatCurrency(
+                                        item.total
+                                      )}
+                                    </td>
+
+                                    <td className="px-4 py-3 text-center">
+                                      {index <
+                                        monthlySummary.length -
+                                          1 && (
+                                        <span
+                                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
+                                            isUp
+                                              ? "bg-red-50 text-red-600"
+                                              : "bg-emerald-50 text-emerald-600"
+                                          }`}
+                                        >
+                                          {isUp ? (
+                                            <TrendingUp className="h-3.5 w-3.5" />
+                                          ) : (
+                                            <TrendingDown className="h-3.5 w-3.5" />
+                                          )}
+
+                                          {Math.abs(diff) > 0
+                                            ? formatCurrency(
+                                                Math.abs(
+                                                  diff
+                                                )
+                                              )
+                                            : "0"}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {!yearlyExpenses &&
+                    monthlySummary.length === 0 && (
+                      <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                        <BarChart3 className="mx-auto h-10 w-10 text-slate-300" />
+
+                        <p className="mt-3 text-sm font-semibold text-slate-700">
+                          No summary data available
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          Expense summary reports will appear here
+                          when data is available.
+                        </p>
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
           </section>
 
-          {/* Footer */}
-          <footer className="mt-9 border-t border-slate-200 pt-6">
-            <div className="flex flex-col gap-2 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                © {new Date().getFullYear()} NYUTU LIMITED
-              </p>
+          {/* PROFILE */}
 
-              <p>
-                Management Portal · Manager Access
-              </p>
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-lg font-black text-blue-700">
+                  {initials}
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                    Account
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    {fullName}
+                  </h3>
+
+                  <p className="text-sm text-slate-500">
+                    {me?.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+
+                <div>
+                  <p className="text-xs font-bold text-emerald-700">
+                    Manager Account
+                  </p>
+
+                  <p className="text-[11px] text-emerald-600">
+                    Authorized access
+                  </p>
+                </div>
+              </div>
             </div>
+          </section>
+
+          {/* FOOTER */}
+
+          <footer className="py-6 text-center">
+            <p className="text-xs text-slate-400">
+              Nyutu Ltd Enterprise Management System
+            </p>
+
+            <p className="mt-1 text-[10px] text-slate-400">
+              Secure operations management
+            </p>
           </footer>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
