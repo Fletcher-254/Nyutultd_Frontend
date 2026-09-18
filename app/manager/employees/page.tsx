@@ -9,18 +9,20 @@ import {
   ChevronRight,
   CircleDollarSign,
   Clock3,
-  FileText,
   Fuel,
   LayoutDashboard,
   LogOut,
   Menu,
   RefreshCw,
   Search,
+  Store,
   Truck,
   UserCheck,
   Users,
   UserX,
   X,
+  ShieldCheck,
+  Receipt,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -79,16 +81,6 @@ function extractArray<T>(data: unknown): T[] {
   return [];
 }
 
-function formatCurrency(value: number | string | undefined) {
-  const amount = Number(value || 0);
-
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export default function ManagerEmployeesPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -140,10 +132,15 @@ export default function ManagerEmployeesPage() {
       {
         label: "Vendors",
         href: "/manager/vendors",
-        icon: BriefcaseBusiness,
+        icon: Store,
+      },
+      {
+        label: "Expenses",
+        href: "/manager/expenses",
+        icon: Receipt,
       },
     ],
-    [],
+    []
   );
 
   const isActive = useCallback(
@@ -151,10 +148,9 @@ export default function ManagerEmployeesPage() {
       if (href === "/manager/dashboard") {
         return pathname === href;
       }
-
       return pathname === href || pathname.startsWith(`${href}/`);
     },
-    [pathname],
+    [pathname]
   );
 
   const navigate = useCallback(
@@ -162,7 +158,7 @@ export default function ManagerEmployeesPage() {
       setMobileOpen(false);
       router.push(href);
     },
-    [router],
+    [router]
   );
 
   const handleUnauthorized = useCallback(() => {
@@ -188,7 +184,7 @@ export default function ManagerEmployeesPage() {
 
       return response;
     },
-    [handleUnauthorized],
+    [handleUnauthorized]
   );
 
   const loadEmployees = useCallback(async () => {
@@ -238,7 +234,7 @@ export default function ManagerEmployeesPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Something went wrong while loading employees.",
+          : "Something went wrong while loading employees."
       );
     } finally {
       setLoading(false);
@@ -248,12 +244,6 @@ export default function ManagerEmployeesPage() {
   useEffect(() => {
     loadEmployees();
   }, [loadEmployees]);
-
-  /*
-   * ---------------------------------------------------------
-   * LOGOUT
-   * ---------------------------------------------------------
-   */
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -288,8 +278,7 @@ export default function ManagerEmployeesPage() {
         employee.national_id?.toLowerCase().includes(searchValue) ||
         employee.position?.toLowerCase().includes(searchValue);
 
-      const employmentType =
-        employee.employment_type?.toLowerCase() || "";
+      const employmentType = employee.employment_type?.toLowerCase() || "";
 
       const matchesEmployment =
         employmentFilter === "all" ||
@@ -302,35 +291,26 @@ export default function ManagerEmployeesPage() {
   const totalEmployees = employees.length;
 
   const casualEmployees = employees.filter(
-    (employee) =>
-      employee.employment_type?.toLowerCase() === "casual",
+    (employee) => employee.employment_type?.toLowerCase() === "casual"
   ).length;
 
   const permanentEmployees = employees.filter(
-    (employee) =>
-      employee.employment_type?.toLowerCase() === "permanent",
+    (employee) => employee.employment_type?.toLowerCase() === "permanent"
   ).length;
 
   const activeEmployees = employees.filter(
-    (employee) => employee.is_active !== false,
+    (employee) => employee.is_active !== false
   ).length;
 
   const inactiveEmployees = employees.filter(
-    (employee) => employee.is_active === false,
+    (employee) => employee.is_active === false
   ).length;
 
   const firstName =
-    me?.first_name?.trim() ||
-    me?.email?.split("@")[0] ||
-    "Manager";
+    me?.first_name?.trim() || me?.email?.split("@")[0] || "Manager";
 
   const fullName =
-    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() ||
-    firstName;
-
-  const initials =
-    `${me?.first_name?.[0] || ""}${me?.last_name?.[0] || ""}`.toUpperCase() ||
-    firstName.slice(0, 2).toUpperCase();
+    `${me?.first_name || ""} ${me?.last_name || ""}`.trim() || firstName;
 
   const currentHour = new Date().getHours();
 
@@ -350,204 +330,230 @@ export default function ManagerEmployeesPage() {
 
   if (loading && !me) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-            <p className="text-sm font-medium text-slate-500">
-              Loading employees...
-            </p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/20">
+            <RefreshCw className="h-7 w-7 animate-spin text-white" />
           </div>
+
+          <h2 className="text-lg font-semibold text-slate-900">
+            Loading employees...
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Verifying secure access
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Mobile overlay */}
       {mobileOpen && (
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
         />
       )}
 
-      {/* -------------------------------------------------------
-          SIDEBAR
-      ------------------------------------------------------- */}
-
+      {/* SIDEBAR */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-950 text-white transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white shadow-2xl transition-transform duration-200 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand */}
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-6">
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-5">
           <button
             type="button"
             onClick={() => navigate("/manager/dashboard")}
             className="flex items-center gap-3"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold shadow-lg shadow-blue-600/20">
-              N
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/30">
+              <span className="text-lg font-black text-white">N</span>
             </div>
 
             <div className="text-left">
-              <div className="text-sm font-bold tracking-wide">
-                NYUTU LIMITED
-              </div>
-
-              <div className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
+              <p className="text-sm font-bold tracking-wide text-white">
+                NYUTU LTD
+              </p>
+              <p className="text-[10px] font-medium tracking-[0.18em] text-slate-400">
                 ERP MANAGEMENT
-              </div>
+              </p>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Management
-          </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            Main Menu
+          </div>
 
-          {modules.map((module) => {
-            const Icon = module.icon;
-            const active = isActive(module.href);
+          <nav className="space-y-1.5">
+            {modules.map((module) => {
+              const Icon = module.icon;
+              const active = isActive(module.href);
 
-            return (
-              <button
-                key={module.href}
-                type="button"
-                onClick={() => navigate(module.href)}
-                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                  active
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
+              return (
+                <button
+                  key={module.href}
+                  type="button"
+                  onClick={() => navigate(module.href)}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <Icon
+                    className={`h-5 w-5 ${
+                      active
+                        ? "text-white"
+                        : "text-slate-500 group-hover:text-slate-300"
+                    }`}
+                  />
 
-                <span className="flex-1 text-left">
-                  {module.label}
-                </span>
+                  <span className="flex-1">{module.label}</span>
 
-                {active && (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+                  {active && <ChevronRight className="h-4 w-4" />}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-        {/* Profile + Sign Out */}
-        <div className="border-t border-slate-800 p-4">
-          <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-900 p-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
-              {initials}
+        {/* Account / Sign Out */}
+        <div className="shrink-0 border-t border-white/10 bg-slate-950 p-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+              {firstName.charAt(0).toUpperCase()}
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
                 {fullName}
               </p>
 
               <p className="truncate text-xs text-slate-400">
-                Manager
+                {me?.email || "Manager"}
               </p>
+
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                <span className="text-[10px] font-medium text-emerald-400">
+                  Manager Account
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* ACTUAL CONNECTED SIGN OUT BUTTON */}
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <LogOut className="h-5 w-5" />
-
-            <span>
-              {loggingOut ? "Signing out..." : "Sign Out"}
-            </span>
+            {loggingOut ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </>
+            )}
           </button>
         </div>
       </aside>
 
-      {/* -------------------------------------------------------
-          MAIN
-      ------------------------------------------------------- */}
-
+      {/* MAIN */}
       <main className="min-h-screen lg:pl-72">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 lg:hidden"
+                aria-label="Open navigation"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
               >
                 <Menu className="h-5 w-5" />
               </button>
 
               <div>
-                <p className="text-xs font-medium text-slate-500">
-                  {today}
+                <p className="text-sm font-medium text-slate-500">
+                  {greeting}
                 </p>
 
-                <h1 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
-                  {greeting}, {firstName}
+                <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  {firstName}
                 </h1>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:flex">
+              <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                System Online
+                <span className="text-xs font-semibold text-emerald-700">
+                  System Online
+                </span>
               </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                {initials}
+              <div className="hidden h-10 w-px bg-slate-200 sm:block" />
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 ring-4 ring-blue-50/50">
+                {firstName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          {/* Welcome */}
-          <section className="mb-6 overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
-            <div className="relative p-6 sm:p-8">
-              <div className="relative z-10 max-w-2xl">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-300 ring-1 ring-blue-500/20">
-                  <Users className="h-3.5 w-3.5" />
-                  Employee Management
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          {/* Welcome banner */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white shadow-sm sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1.5">
+                  <Users className="h-3.5 w-3.5 text-blue-300" />
+                  <span className="text-xs font-semibold text-blue-200">
+                    Employee Management
+                  </span>
                 </div>
 
-                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                <p className="text-sm font-medium text-slate-400">
+                  {greeting}, {firstName}
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
                   Employees
                 </h2>
 
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
                   View and manage employee information across the
                   organization.
                 </p>
               </div>
 
-              <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-3xl" />
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 lg:flex">
+                <Users className="h-8 w-8 text-blue-300" />
+              </div>
             </div>
           </section>
 
@@ -557,13 +563,8 @@ export default function ManagerEmployeesPage() {
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
 
               <div className="flex-1">
-                <p className="font-semibold">
-                  Unable to load employees
-                </p>
-
-                <p className="mt-1 text-sm">
-                  {error}
-                </p>
+                <p className="font-semibold">Unable to load employees</p>
+                <p className="mt-1 text-sm">{error}</p>
               </div>
 
               <button
@@ -573,9 +574,7 @@ export default function ManagerEmployeesPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-50"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${
-                    loading ? "animate-spin" : ""
-                  }`}
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                 />
                 Retry
               </button>
@@ -659,9 +658,7 @@ export default function ManagerEmployeesPage() {
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <RefreshCw
-                    className={`h-4 w-4 ${
-                      loading ? "animate-spin" : ""
-                    }`}
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                   />
                   Refresh
                 </button>
@@ -674,10 +671,7 @@ export default function ManagerEmployeesPage() {
             <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900">
-                    Employees
-                  </h3>
-
+                  <h3 className="font-bold text-slate-900">Employees</h3>
                   <p className="mt-1 text-xs text-slate-500">
                     Employee records
                   </p>
@@ -712,23 +706,18 @@ export default function ManagerEmployeesPage() {
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Employee
                       </th>
-
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         ID
                       </th>
-
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Contact
                       </th>
-
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Position
                       </th>
-
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Employment
                       </th>
-
                       <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Status
                       </th>
@@ -743,8 +732,7 @@ export default function ManagerEmployeesPage() {
                       const employmentType =
                         employee.employment_type || "Not specified";
 
-                      const isActive =
-                        employee.is_active !== false;
+                      const isActive = employee.is_active !== false;
 
                       return (
                         <tr
@@ -805,8 +793,7 @@ export default function ManagerEmployeesPage() {
                           <td className="px-6 py-4">
                             <span
                               className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                employmentType.toLowerCase() ===
-                                "casual"
+                                employmentType.toLowerCase() === "casual"
                                   ? "bg-amber-50 text-amber-700"
                                   : employmentType.toLowerCase() ===
                                       "permanent"
@@ -833,7 +820,6 @@ export default function ManagerEmployeesPage() {
                                     : "bg-red-500"
                                 }`}
                               />
-
                               {isActive ? "Active" : "Inactive"}
                             </span>
                           </td>
@@ -851,7 +837,7 @@ export default function ManagerEmployeesPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
-                  {initials}
+                  {firstName.charAt(0).toUpperCase()}
                 </div>
 
                 <div className="min-w-0">
@@ -863,9 +849,7 @@ export default function ManagerEmployeesPage() {
                     {fullName}
                   </h3>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    {me?.email}
-                  </p>
+                  <p className="mt-1 text-sm text-slate-500">{me?.email}</p>
                 </div>
               </div>
             </div>
@@ -916,17 +900,13 @@ function SummaryCard({
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
 
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             {value}
           </p>
 
-          <p className="mt-1 text-xs text-slate-400">
-            {description}
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{description}</p>
         </div>
 
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
